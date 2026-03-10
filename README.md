@@ -22,6 +22,7 @@
 |----------|--------|-------------|--------------|------------------|----------------|
 | `/api/auth/token` | POST | Obtain JWT token | `{ identifier: string, password: string }` | **200 OK**: `{ access: string, refresh: string, expiresAt: date, user: { id: guid, name: string, role: string } }` | 400, 401, 403 | 
 | `/api/auth/token/refresh` | POST | Refresh JWT token | `{ refresh: string }` | **200 OK**: `{ access: string, refresh: string, expiresAt: date, user: { id: guid, name: string, role: string, branch: string } }` | 400, 401, 403 |
+| `/api/auth/logout` | POST | Logout from the system | None | **200 OK** No Content | 400, 401, 403 |  
 
 # User Endpoints
 | Endpoint | Method | Description | Request Body | Success Response | Error Response |
