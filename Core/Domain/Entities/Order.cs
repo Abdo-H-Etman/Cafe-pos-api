@@ -15,5 +15,6 @@ public class Order : IdModel
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
-    
+    public User Cashier { get; set; } = null!;
+    public Branch Branch { get; set; } = null!;
 }
