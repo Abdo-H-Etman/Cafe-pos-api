@@ -9,4 +9,5 @@ public class Branch : IdModel
     public ICollection<User> Users { get; set; } = [];
     public ICollection<BranchProduct> BranchProducts { get; set; } = [];
     public ICollection<StockMovement> StockMovements { get; set; } = [];
+    public ICollection<Order> Orders { get; set; } = [];
 }
