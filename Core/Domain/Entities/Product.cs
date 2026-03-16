@@ -8,4 +8,5 @@ public class Product : IdModel
     public Guid CategoryId { get; set; }
 
     public Category Category { get; set; } = null!;
+    public ICollection<Recipe> Recipes { get; set; } = [];
 }
