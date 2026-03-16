@@ -1,6 +1,8 @@
+using Core.Domain.Entities.Generics;
+
 namespace Core.Domain.Entities;
 
-public class Recipe
+public class Recipe : IdModel
 {
     public Guid ProductId { get; set; }
     public Guid IngredientId { get; set; }
