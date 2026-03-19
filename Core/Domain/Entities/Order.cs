@@ -17,4 +17,5 @@ public class Order : IdModel
 
     public User Cashier { get; set; } = null!;
     public Branch Branch { get; set; } = null!;
+    public ICollection<OrderItem> OrderItems { get; set; } = null!;
 }
