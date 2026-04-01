@@ -34,7 +34,7 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("register")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, Manager")]
     public async Task<IActionResult> Register([FromBody] CreateUserDto request)
     {
         var ipAddress = GetIpAddress();
