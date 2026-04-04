@@ -39,7 +39,7 @@ public class AuthenticationService : IAuthenticationService
         _signInManager = signInManager;
     }
 
-    public async Task<Result<AuthResponseDto>> RegisterUserAsync(
+    public async Task<Result<UserDetailsDto>> RegisterUserAsync(
         CreateUserDto createUserDto,
         string? ipAddress = null,
         string? userAgent = null,
@@ -55,7 +55,7 @@ public class AuthenticationService : IAuthenticationService
                 if (existingUser != null)
                 {
                     _logger.LogWarn("Registration attempt failed: Email {email} is already registered", createUserDto.Email);
-                    return Result<AuthResponseDto>.Failure("Email is already registered.");
+                    return Result<UserDetailsDto>.Failure("Email is already registered.");
                 }
             }
 
@@ -63,13 +63,13 @@ public class AuthenticationService : IAuthenticationService
             if (existingUser != null)
             {
                 _logger.LogWarn("Registration attempt failed: Username {username} is already taken", createUserDto.UserName);
-                return Result<AuthResponseDto>.Failure("Username is already taken.");
+                return Result<UserDetailsDto>.Failure("Username is already taken.");
             }
 
             if (createUserDto.Password != createUserDto.ConfirmPassword)
             {
                 _logger.LogError("Password and confirm password don't match for user {username}", createUserDto.UserName);
-                return Result<AuthResponseDto>.Failure("Passwords do not match.");
+                return Result<UserDetailsDto>.Failure("Passwords do not match.");
             }
 
             var newUser = new User
@@ -78,6 +78,7 @@ public class AuthenticationService : IAuthenticationService
                 Email = createUserDto.Email,
                 Name = createUserDto.Name,
                 DateJoined = DateTime.UtcNow,
+                BranchId = createUserDto.BranchId
             };
 
             var result = await _userManager.CreateAsync(newUser, createUserDto.Password);
@@ -86,25 +87,45 @@ public class AuthenticationService : IAuthenticationService
                 var errors = result.Errors.Select(e => e.Description).ToList();
                 _logger.LogError("Failed to create user with email {email}: {errors}", createUserDto.Email!,
                                 string.Join(';', errors));
-                return Result<AuthResponseDto>.Failure($"User creation failed.", errors);
+                return Result<UserDetailsDto>.Failure($"User creation failed.", errors);
             }
 
             var createdUser = await _userManager.FindByNameAsync(createUserDto.UserName);
             if (createdUser == null)
             {
                 _logger.LogError("User with username {username} was created but could not be retrieved from database.", createUserDto.UserName);
-                return Result<AuthResponseDto>.Failure("User was created but could not be retrieved from database.");
+                return Result<UserDetailsDto>.Failure("User was created but could not be retrieved from database.");
             }
 
-            var authResponse = await GenerateAuthResponseDtoAsync(createdUser, ipAddress, userAgent, cancellationToken);
+            if (createUserDto.Roles != null && createUserDto.Roles.Any())
+            {
+                var roleResult = await _userManager.AddToRolesAsync(createdUser, createUserDto.Roles);
+                if (!roleResult.Succeeded)
+                {
+                    var errors = roleResult.Errors.Select(e => e.Description).ToList();
+                    _logger.LogError("Failed to assign roles to user {username}: {errors}", createUserDto.UserName,
+                                    string.Join(';', errors));
+                    return Result<UserDetailsDto>.Failure("User was created but role assignment failed.", errors);
+                }
+            }
+
+            // Fetch user with Branch and Roles properly loaded
+            var userWithDetails = await _repositoryManager.User.GetUserByIdAsync(createdUser.Id, cancellationToken);
+            if (userWithDetails == null)
+            {
+                _logger.LogError("User with username {username} was created but could not be retrieved with details.", createUserDto.UserName);
+                return Result<UserDetailsDto>.Failure("User was created but could not retrieve user details.");
+            }
+
+            var userDetails = MapToUserDetailsDto(userWithDetails);
 
             _logger.LogInfo("User with Id {userId} registered successfully.", createdUser.Id);
-            return Result<AuthResponseDto>.Success(authResponse, "User registered successfully.");
+            return Result<UserDetailsDto>.Success(userDetails, "User registered successfully.");
         }
         catch (Exception ex)
         {
             _logger.LogError("Error during user registration: {message}", ex.Message);
-            return Result<AuthResponseDto>.Failure("Registration failed.");
+            return Result<UserDetailsDto>.Failure($"Registration failed. {ex.Message}");
         }
     }
 
@@ -129,7 +150,7 @@ public class AuthenticationService : IAuthenticationService
                 _logger.LogWarn("Login attempt failed: User with ID {userId} is already logged in", user.Id);
                 return Result<AuthResponseDto>.Failure("User is already logged in.");
             }
-            
+
             var signInResult = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, lockoutOnFailure: true);
             if (signInResult.IsLockedOut)
             {
@@ -144,13 +165,14 @@ public class AuthenticationService : IAuthenticationService
 
             var authResponse = await GenerateAuthResponseDtoAsync(user, ipAddress, userAgent, cancellationToken);
             user.LastLoginAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
             _logger.LogInfo("User with ID {userId} logged in successfully.", user.Id);
             return Result<AuthResponseDto>.Success(authResponse, "User logged in successfully.");
         }
         catch (Exception ex)
         {
             _logger.LogError("Error during user login: {message} ", ex.Message);
-            return Result<AuthResponseDto>.Failure("Login failed.");
+            return Result<AuthResponseDto>.Failure($"Login failed. {ex.Message}");
         }
     }
 
@@ -212,6 +234,43 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 
+    public async Task<Result> ChangePasswordAsync(
+        Guid userId,
+        ChangePasswordDto changePasswordDto,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var user = _userManager.FindByIdAsync(userId.ToString()).Result;
+            if (user == null)
+            {
+                _logger.LogWarn("Change password attempt failed: User with ID {userId} not found.", userId);
+                return Result.Failure("User not found.");
+            }
+
+            if(changePasswordDto.NewPassword != changePasswordDto.ConfirmNewPassword)
+            {
+                _logger.LogWarn("Change password attempt failed: New password and confirm new password do not match for user ID {userId}.", userId);
+                return Result.Failure("New password and confirm new password do not match.");
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, changePasswordDto.CurrentPassword, changePasswordDto.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToList();
+                _logger.LogWarn("Change password attempt failed for user ID {userId}: {errors}", userId, string.Join(';', errors));
+                return Result.Failure("Password change failed.", errors);
+            }
+
+            _logger.LogInfo("Password changed successfully for user ID {userId}.", userId);
+            return Result.Success("Password changed successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error during password change for user ID {userId}: {message}", userId, ex.Message);
+            return Result.Failure("Password change failed.");
+        }
+    }
     public async Task<Result> RevokeTokenAsync(
         string refreshToken,
         string? ipAddress = null,
@@ -381,41 +440,6 @@ public class AuthenticationService : IAuthenticationService
         return Convert.ToBase64String(randomBytes);
     }
 
-    private ClaimsPrincipal? GetPrincipalFromToken(string token)
-    {
-        try
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);
-
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = true,
-                ValidIssuer = _jwtSettings.Issuer,
-                ValidateAudience = true,
-                ValidAudience = _jwtSettings.Audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            };
-
-            var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
-
-            if (validatedToken is not JwtSecurityToken jwtToken ||
-                !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-            {
-                return null;
-            }
-
-            return principal;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
     {
         try
@@ -431,7 +455,7 @@ public class AuthenticationService : IAuthenticationService
                 ValidIssuer = _jwtSettings.Issuer,
                 ValidateAudience = true,
                 ValidAudience = _jwtSettings.Audience,
-                ValidateLifetime = false, // Don't validate lifetime for expired tokens
+                ValidateLifetime = false,
                 ClockSkew = TimeSpan.Zero
             };
 
@@ -459,7 +483,21 @@ public class AuthenticationService : IAuthenticationService
             Name = user.Name,
             UserName = user.UserName ?? "",
             Email = user.Email ?? "",
+            BranchId = user.BranchId,
             DateJoined = user.DateJoined
+        };
+    }
+    private UserDetailsDto MapToUserDetailsDto(User user)
+    {
+        return new UserDetailsDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            UserName = user.UserName!,
+            BranchId = user.BranchId,
+            Branch = user.Branch?.Name!,
+            Roles = user.Roles?.Select(r => r.Role?.Name)!
         };
     }
 }

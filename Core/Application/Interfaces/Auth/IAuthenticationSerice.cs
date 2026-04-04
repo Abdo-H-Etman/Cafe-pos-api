@@ -6,7 +6,7 @@ namespace Application.Interfaces.Auth;
 
 public interface IAuthenticationService
 {
-    Task<Result<AuthResponseDto>> RegisterUserAsync(
+    Task<Result<UserDetailsDto>> RegisterUserAsync(
         CreateUserDto createUserDto,
         string? ipAddress = null,
         string? userAgent = null,
@@ -22,6 +22,11 @@ public interface IAuthenticationService
         string? userAgent = null,
         CancellationToken cancellationToken = default);
     
+    Task<Result> ChangePasswordAsync(
+        Guid userId,
+        ChangePasswordDto changePasswordDto,
+        CancellationToken cancellationToken = default);
+
     Task<Result> RevokeTokenAsync(
         string refreshToken,                
         string? ipAddress = null,
