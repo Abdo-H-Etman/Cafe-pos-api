@@ -5,6 +5,7 @@ using Core.Application.Utilities;
 using Core.Domain.Entities;
 using DotNetEnv;
 using Infrastructure.Data;
+using Infrastructure.SeedData;
 using Infrastructure.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -22,6 +23,8 @@ public static class ServiceExtensions
         services.ConfigureJwt(configuration);
         services.AddRepositories();
         services.AddApplicationServices();
+        services.AddScoped<InitialDataSeeder>();
+        services.AddControllers();
     }
 
     public static void ConfigureDatabase(this IServiceCollection services, IConfiguration configuration)
@@ -38,7 +41,7 @@ public static class ServiceExtensions
 
     public static void ConfigureIdentity(this IServiceCollection services)
     {
-        services.AddIdentity<User, IdentityRole<Guid>>()
+        services.AddIdentity<User, Role>()
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
     }
