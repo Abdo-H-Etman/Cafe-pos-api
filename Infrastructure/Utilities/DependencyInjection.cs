@@ -14,5 +14,6 @@ public static class DependencyInjection
         services.AddScoped<IRepositoryManager, RepositoryManager>();
         services.AddSingleton<ILoggerManager, LoggerManager>();
         services.AddScoped<IRepository<RefreshToken>, Repository<RefreshToken>>();
+        services.AddScoped<IUserRepository, UserRepository>();
     }
 }

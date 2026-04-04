@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data;
 
-public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
+public class AppDbContext : IdentityDbContext<User, Role, Guid, IdentityUserClaim<Guid>, UserRole, IdentityUserLogin<Guid>, IdentityRoleClaim<Guid>, IdentityUserToken<Guid>>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -25,14 +25,23 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
         
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         
-        builder.Entity<IdentityRole<Guid>>(entity =>
+        builder.Entity<Role>(entity =>
         {
             entity.ToTable("Roles");
         });
         
-        builder.Entity<IdentityUserRole<Guid>>(entity =>
+        builder.Entity<UserRole>(entity =>
         {
             entity.ToTable("UserRoles");
+
+            entity.HasOne(ur => ur.User)
+                .WithMany(u => u.Roles)
+                .HasForeignKey(ur => ur.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(ur => ur.Role)
+                .WithMany(r => r.Users)
+                .HasForeignKey(ur => ur.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
