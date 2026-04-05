@@ -1,5 +1,12 @@
 # Cafe Point Of Sale (POS) System
 
+# Roles
+- **Admin**:
+    - Can do any thing in the system.
+- **Manager**:
+    - Can list, update, and delete users in his within his branch only.
+- **Cashier**:
+    - Can only create orders in his branch
 
 # Models
 - **Role**:
@@ -20,15 +27,18 @@
 # Auth Endpoints
 | Endpoint | Method | Description | Request Body | Success Response | Error Response |
 |----------|--------|-------------|--------------|------------------|----------------|
-| `/api/auth/token` | POST | Obtain JWT token | `{ identifier: string, password: string }` | **200 OK**: `{ access: string, refresh: string, expiresAt: date, user: { id: guid, name: string, role: string } }` | 400, 401, 403 | 
-| `/api/auth/token/refresh` | POST | Refresh JWT token | `{ refresh: string }` | **200 OK**: `{ access: string, refresh: string, expiresAt: date, user: { id: guid, name: string, role: string, branch: string } }` | 400, 401, 403 |
+| `/api/auth/login` | POST | Obtain JWT token | `{ identifier: string, password: string }` | **200 OK**: `{ accessToken: string, refreshToken: string, expiresAt: date, user: { id: guid, name: string, email: string, userName: string, branchId: guid, dateJoined: date } }` | 400, 401, 403 | 
+| `/api/auth/refresh-token` | POST | Refresh JWT token | `{ accessToken: string, refreshToken: string }` | **200 OK**: `{ accessToken: string, refreshToken: string, expiresAt: date, user: { id: guid, name: string, email: string, userName: string, branchId: guid, dateJoined: date } }` | 400, 401, 403 |
 | `/api/auth/logout` | POST | Logout from the system | None | **200 OK** No Content | 400, 401, 403 |  
+| `/api/auth/register` | POST | Create user (Admin and Manager only) | `{ email: string (optional), userName: string, name: string, branchId: guid, roles: [ string ], password: string, confirmPassword: string }` | **201 Created**: `{ id: guid, branch: string, roles: [ string], name: string, email: string, userName: string, branchId: guid, dateJoined: date }` | 400, 403, 500 |
 
 # User Endpoints
 | Endpoint | Method | Description | Request Body | Success Response | Error Response |
 |----------|--------|-------------|--------------|------------------|----------------|
-| `/api/users` | POST | Create user (Admin only) | `{ email: string, userName: string, name: string, branchId: guid, roleId: guid }` | **201 Created**: `{ id: guid, name: string, role: string, branch: string }` | 400, 403, 500 |
-| `/api/users` | GET | List all users (Admin only) | None | **200 OK**: `[ { id: guid, name: string, role: string, branch: name} ]` | 403, 500 |
-| `/api/users/{id}` | PATCH | Update a user (Admin only) | Same as POST, fields optional | **201 Created**: Same as POST | 400, 403, 404, 500 |
-| `/api/users/{id}` | DELETE | Delete a user (Admin only) | None | **204 No Content**: Same as POST | 403, 404, 500 |
+| `/api/users/{id}` | GET | Get user by id (Admin and Manager only) | None | **200 OK**: `{ id: guid, branch: string, roles: [ string], name: string, email: string, userName: string, branchId: guid, dateJoined: date }` | 403, 404, 500 |
+| `/api/users/by-email` | GET | Get user by email (Admin and Manager only) email sends in query parameter "email" | None | **200 OK**: `{ id: guid, branch: string, roles: [ string], name: string, email: string, userName: string, branchId: guid, dateJoined: date }` | 403, 404, 500 |
+| `/api/users/by-branch/{branchId}` | GET | List users in specific branch (Admin and the Manager of this branch only) | None | **200 OK**: `[ { id: guid, branch: string, roles: [ string], name: string, email: string, userName: string, branchId: guid, dateJoined: date } ]` | 403, 500 |
+| `/api/users/by-role` | GET | List users with specific role (Admin only) | None | **200 OK**: `[ { id: guid, branch: string, roles: [ string], name: string, email: string, userName: string, branchId: guid, dateJoined: date } ]` | 403, 500 |
+| `/api/users/{id}` | PATCH | Update a user (Admin and Manager only) | `{ name: string, userName: string, email: string}` all fileds optional | **201 Created**: Same as GET By Id | 400, 403, 404, 500 |
+| `/api/users/{id}` | DELETE | Delete a user (Admin and Manager only) | None | **204 No Content**: Same as GET By Id | 403, 404, 500 |
 
