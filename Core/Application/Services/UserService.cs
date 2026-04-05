@@ -176,7 +176,7 @@ public class UserService : IUserService
             }
 
             await _repository.User.Delete(user, cancellationToken);
-            return Result.Success();
+            return Result.Success("User deleted successfully.");
         }
         catch (Exception ex)
         {

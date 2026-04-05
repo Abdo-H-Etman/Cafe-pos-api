@@ -59,8 +59,12 @@ public class UserRepository : IUserRepository
                 .Where(u => u.Roles.Any(ur => ur.RoleId == roleId))
                 .ToListAsync(cancellationToken);
 
-    public async Task Update(User user, CancellationToken cancellationToken = default) =>
-        await _userManager.UpdateAsync(user);
+    public async Task Update(User user, CancellationToken cancellationToken = default)
+    {
+        _context.ChangeTracker.Clear();
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task Delete(User user, CancellationToken cancellationToken = default) =>
         await _userManager.DeleteAsync(user);
