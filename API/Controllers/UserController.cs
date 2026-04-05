@@ -9,11 +9,11 @@ namespace API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Roles = "Admin, Manager")]
-public class UserController : ControllerBase
+public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly ICurrentUserService _currentUserService;
-    public UserController(IUserService userService, ICurrentUserService currentUserService)
+    public UsersController(IUserService userService, ICurrentUserService currentUserService)
     {
         _userService = userService;
         _currentUserService = currentUserService;
