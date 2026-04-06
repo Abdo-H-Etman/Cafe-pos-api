@@ -11,12 +11,21 @@
 # Models
 - **Role**:
   - Fields: `id`, `name`
-  - values: `Admin` can create, delete users, `Cashier` can create, update orders
 - **Branch**
   - Fields: `id`, `name`, `address`
 - **User**
-  - Fields: `id`, `email`, `name`, `username`, `branchId`, `roleId`
+  - Fields: `id`, `email`, `name`, `username`, `branchId`
 
+# DTOs
+- **UserDetailsDto**:
+  - Fileds: `id`, `branch: string`, `roles: [ string ]`, `name`, `email`, `userName`, `branchId`, `dateJoined`
+- **BranchProductDto**:
+  - Fileds: `branchId`, `productId`, `productName`, `price`
+- **StockMovementDto**:
+  - Fileds: `id`, `ingredientName`, `quantity`, `movementType`, `date`
+- **OrderDto**:
+  - Fileds: `id`, `cashier: string`, `totalPrice`, `status: string`, `date`
+    
 ### API Scheme
 #### Common Responses
 - **400 Bad Request**: Incorrect request scheme.
@@ -42,3 +51,12 @@
 | `/api/users/{id}` | PATCH | Update a user (Admin and Manager only) | `{ name: string, userName: string, email: string}` all fileds optional | **201 Created**: Same as GET By Id | 400, 403, 404, 500 |
 | `/api/users/{id}` | DELETE | Delete a user (Admin and Manager only) | None | **204 No Content**: Same as GET By Id | 403, 404, 500 |
 
+# Branch Endpoints
+| Endpoint | Method | Description | Request Body | Success Response | Error Response |
+|----------|--------|-------------|--------------|------------------|----------------|
+| `/api/branches/{id}` | GET | Get branch by id (Admin only) | None | **200 OK**: `{ id: guid, name: string, address: string }` | 403, 404, 500 |
+| `/api/branches/{id}/details` | GET | Get branch by id (Admin only) | None | **200 OK**: `{ id: guid, name: string, address: string, users: [ UserDetailsDto ], branchProducts: [ BranchProductDto ], stockMovements: [ StockMovementDto ], orders: [ OrderDto ] }` | 403, 404, 500 |
+| `/api/branches` | GET | List all branches (Admin and Manager only) | None | **200 OK**: `[ { id: guid, name: string, address: string }, ... ]` | 403, 500 |
+| `/api/branches` | POST | Create a new branch (Admin only) | `{ name: string, address: string }` | **201 Created**: `{ id: guid, name: string, address: string }` | 400, 403, 500 |
+| `/api/branches/{id}` | PATCH | Update a branch (Admin only) | `{ name: string (optional), address: string (optional) }` | **200 OK**: `{ id: guid, name: string, address: string }` | 400, 403, 404, 500 |
+| `/api/branches/{id}` | DELETE | Delete a branch (Admin only) | None | **204 No Content** | 403, 404, 500 |
