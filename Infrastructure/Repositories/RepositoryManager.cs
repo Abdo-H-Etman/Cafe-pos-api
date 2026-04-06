@@ -17,6 +17,8 @@ public class RepositoryManager : IRepositoryManager
     }
     public IRepository<RefreshToken> RefreshToken => _serviceProvider.GetRequiredService<IRepository<RefreshToken>>();
     public IUserRepository User => _serviceProvider.GetRequiredService<IUserRepository>();
+    public IBranchRepository Branch => _serviceProvider.GetRequiredService<IBranchRepository>();
+
     public async Task SaveAsync(CancellationToken cancellationToken = default) =>
         await _context.SaveChangesAsync(cancellationToken);
 

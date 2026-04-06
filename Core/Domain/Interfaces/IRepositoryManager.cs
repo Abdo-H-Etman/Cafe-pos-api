@@ -6,6 +6,7 @@ public interface IRepositoryManager : IDisposable
 {
     IRepository<RefreshToken> RefreshToken { get; }
     IUserRepository User { get; }
+    IBranchRepository Branch { get; }
 
     Task SaveAsync(CancellationToken cancellationToken = default);
 }

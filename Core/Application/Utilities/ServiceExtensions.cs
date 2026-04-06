@@ -3,6 +3,7 @@ using Application.Interfaces;
 using Application.Interfaces.Auth;
 using Application.Services;
 using Application.Services.Auth;
+using Core.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Application.Utilities;
@@ -15,5 +16,6 @@ public static class ServiceExtensions
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IBranchService, BranchService>();
     }
 }
