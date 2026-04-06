@@ -29,6 +29,21 @@ public static class ServiceExtensions
 
     public static void ConfigureDatabase(this IServiceCollection services, IConfiguration configuration)
     {
+        var dbProvider = Env.GetString("DB_PROVIDER")?.ToLowerInvariant() ?? "postgres";
+
+        if (dbProvider == "sqlite" || dbProvider == "sqlite3")
+        {
+            var dbName = Env.GetString("DB_NAME");
+            if (string.IsNullOrWhiteSpace(dbName))
+            {
+                dbName = "cafe_pos.db";
+            }
+
+            services.AddDbContextPool<AppDbContext>(options =>
+                options.UseSqlite($"Data Source={dbName}"));
+            return;
+        }
+
         string connectionString =
             $"Host={Env.GetString("DB_HOST")};"+
             $"Port={Env.GetString("DB_PORT")};"+

@@ -1,5 +1,7 @@
 using Core.Domain.Entities;
+using Core.Domain.Interfaces;
 using Infrastructure.Data;
+using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 
@@ -8,18 +10,38 @@ namespace Infrastructure.SeedData;
 public class InitialDataSeeder
 {
     private readonly UserManager<User> _userManager;
+    private readonly IRepositoryManager _repository;
 
     public InitialDataSeeder(
-        UserManager<User> userManager)
+        UserManager<User> userManager,
+        IRepositoryManager repository)
     {
         _userManager = userManager;
+        _repository = repository;
     }
 
     public async Task SeedAsync()
     {
+        await SeedBranchDataAsync();
         await SeedAdminUserAsync();
     }
 
+    private async Task SeedBranchDataAsync()
+    {
+        var existingBranch = await _repository.Branch.GetBranchWithDetailsAsync(new Guid("4acc688c-fec1-442a-9873-8d374079f097"));
+        if (existingBranch == null)
+        {
+            var branch = new Branch
+            {
+                Id = new Guid("4acc688c-fec1-442a-9873-8d374079f097"),
+                Name = "Main Branch",
+                Address = "123 Main St, Cityville"
+            };
+
+            await _repository.Branch.AddAsync(branch);
+            await _repository.SaveAsync();
+        }
+    }
     private async Task SeedAdminUserAsync()
     {
         // Check if admin user already exists
