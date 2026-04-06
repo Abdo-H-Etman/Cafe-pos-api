@@ -14,4 +14,5 @@ public class OrderItem : IdModel
     public decimal TotalPrice { get; set; }
 
     public Order Order { get; set; } = null!;
+    public Product Product { get; set; } = null!;
 }
