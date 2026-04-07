@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Application.Common.Models;
 using Application.DTOs.User;
 using Application.Interfaces;
@@ -79,6 +80,34 @@ public class UserService : IUserService
         {
             _logger.LogError($"Error fetching user by email: {ex.Message}");
             return Result<UserDetailsDto>.Failure("An error occurred while fetching the user.");
+        }
+    }
+
+    public async Task<Result<IEnumerable<UserDetailsDto>>> GetPagedUsersAsync(int pageNumber,
+                int pageSize, string? searchTerm = null,
+                Guid? branchId = null,
+                string? roleName = null,
+                CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var predicate = string.IsNullOrEmpty(searchTerm)
+                ? null
+                : (Expression<Func<User, bool>>)(u => u.Name.ToLower().Contains(searchTerm.ToLower()) ||
+                        u.Email!.ToLower().Contains(searchTerm.ToLower()) ||
+                        u.UserName!.ToLower().Contains(searchTerm.ToLower()));
+
+            var users = await _repository.User.GetPagedUsersAsync(pageNumber,
+                        pageSize, predicate, branchId, roleName, cancellationToken);
+            var userDetailsList = users.Select(MapToUserDetailsDto);
+
+            _logger.LogInfo($"Fetched page {pageNumber} of users with page size {pageSize} and search term '{searchTerm}'.");
+            return Result<IEnumerable<UserDetailsDto>>.Success(userDetailsList);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error fetching paged users: {ex.Message}");
+            return Result<IEnumerable<UserDetailsDto>>.Failure($"An error occurred while fetching the users. {ex.Message}");
         }
     }
 
