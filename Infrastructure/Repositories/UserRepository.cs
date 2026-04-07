@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Core.Domain.Entities;
 using Core.Domain.Interfaces;
 using Infrastructure.Data;
@@ -40,6 +41,36 @@ public class UserRepository : IUserRepository
                 .Include(u => u.Roles)
                 .ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserName == username, cancellationToken);
+
+    public async Task<IReadOnlyList<User>> GetPagedUsersAsync(int pageNumber,
+            int pageSize,
+            Expression<Func<User, bool>>? predicate = null,
+            Guid? branchId = null,
+            string? roleName = null,
+            CancellationToken cancellationToken = default)
+    {
+        var query = _context.Users
+                .AsNoTrackingWithIdentityResolution()
+                .Include(u => u.Branch)
+                .Include(u => u.Roles)
+                .ThenInclude(ur => ur.Role)
+                .AsQueryable();
+
+        if (predicate != null)
+            query = query.Where(predicate);
+
+        if (branchId.HasValue)
+            query = query.Where(u => u.BranchId == branchId.Value);
+        
+        if (!string.IsNullOrEmpty(roleName))
+            query = query.Where(u => u.Roles.Any(ur => ur.Role.Name == roleName));
+
+        return await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .OrderBy(u => u.Name)
+            .ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<User>> GetUsersByBranchIdAsync(Guid branchId, CancellationToken cancellationToken = default) =>
         await _context.Users

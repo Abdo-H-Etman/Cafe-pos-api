@@ -60,6 +60,21 @@ public class UsersController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPagedUsers([FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] Guid? branchId = null,
+            [FromQuery] string? roleName = null)
+    {
+        var result = await _userService.GetPagedUsersAsync(pageNumber, pageSize, searchTerm, branchId, roleName);
+
+        if (!result.IsSuccess)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
     [HttpGet("by-branch/{branchId:guid}")]
     public async Task<IActionResult> GetUserByBranch(Guid branchId)
     {
