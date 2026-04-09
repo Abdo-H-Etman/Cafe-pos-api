@@ -137,8 +137,8 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            var user = await _userManager.FindByNameAsync(loginDto.Identifier)
-                       ?? await _userManager.FindByEmailAsync(loginDto.Identifier);
+            var user = await _repositoryManager.User.GetUserByUsernameAsync(loginDto.Identifier, cancellationToken) ??
+                       await _repositoryManager.User.GetUserByEmailAsync(loginDto.Identifier, cancellationToken);
             if (user == null)
             {
                 _logger.LogWarn("Login attempt failed: User with identifier {identifier} not found", loginDto.Identifier);
@@ -165,7 +165,8 @@ public class AuthenticationService : IAuthenticationService
 
             var authResponse = await GenerateAuthResponseDtoAsync(user, ipAddress, userAgent, cancellationToken);
             user.LastLoginAt = DateTime.UtcNow;
-            await _userManager.UpdateAsync(user);
+            await _repositoryManager.User.Update(user, cancellationToken);
+            await _repositoryManager.SaveAsync(cancellationToken);
             _logger.LogInfo("User with ID {userId} logged in successfully.", user.Id);
             return Result<AuthResponseDto>.Success(authResponse, "User logged in successfully.");
         }
@@ -357,7 +358,7 @@ public class AuthenticationService : IAuthenticationService
             AccessToken = accessToken,
             RefreshToken = refreshToken.Token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationInMinutes),
-            User = MapToUserResponse(user)
+            User = MapToUserDetailsDto(user)
         };
     }
 
