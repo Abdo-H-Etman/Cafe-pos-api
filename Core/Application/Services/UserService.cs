@@ -83,7 +83,7 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<Result<IEnumerable<UserDetailsDto>>> GetPagedUsersAsync(int pageNumber,
+    public async Task<Result<IEnumerable<UserDetailsDto>, MetaData>> GetPagedUsersAsync(int pageNumber,
                 int pageSize, string? searchTerm = null,
                 Guid? branchId = null,
                 string? roleName = null,
@@ -97,17 +97,20 @@ public class UserService : IUserService
                         u.Email!.ToLower().Contains(searchTerm.ToLower()) ||
                         u.UserName!.ToLower().Contains(searchTerm.ToLower()));
 
-            var users = await _repository.User.GetPagedUsersAsync(pageNumber,
+            var (users, totalCount) = await _repository.User.GetPagedUsersAsync(pageNumber,
                         pageSize, predicate, branchId, roleName, cancellationToken);
+
             var userDetailsList = users.Select(MapToUserDetailsDto);
 
+            var metaData = new MetaData(pageNumber, pageSize, totalCount);
+            
             _logger.LogInfo($"Fetched page {pageNumber} of users with page size {pageSize} and search term '{searchTerm}'.");
-            return Result<IEnumerable<UserDetailsDto>>.Success(userDetailsList);
+            return Result<IEnumerable<UserDetailsDto>, MetaData>.Success(userDetailsList, metaData);
         }
         catch (Exception ex)
         {
             _logger.LogError($"Error fetching paged users: {ex.Message}");
-            return Result<IEnumerable<UserDetailsDto>>.Failure($"An error occurred while fetching the users. {ex.Message}");
+            return Result<IEnumerable<UserDetailsDto>, MetaData>.Failure($"An error occurred while fetching the users. {ex.Message}");
         }
     }
 
