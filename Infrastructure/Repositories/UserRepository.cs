@@ -42,7 +42,7 @@ public class UserRepository : IUserRepository
                 .ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserName == username, cancellationToken);
 
-    public async Task<IReadOnlyList<User>> GetPagedUsersAsync(int pageNumber,
+    public async Task<(IReadOnlyList<User> Users, int TotalCount)> GetPagedUsersAsync(int pageNumber,
             int pageSize,
             Expression<Func<User, bool>>? predicate = null,
             Guid? branchId = null,
@@ -65,11 +65,15 @@ public class UserRepository : IUserRepository
         if (!string.IsNullOrEmpty(roleName))
             query = query.Where(u => u.Roles.Any(ur => ur.Role.Name == roleName));
 
-        return await query
+        var total = await query.CountAsync(cancellationToken);
+
+        var users = await query
+            .OrderBy(u => u.Name)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .OrderBy(u => u.Name)
             .ToListAsync(cancellationToken);
+            
+        return (users, total);
     }
 
     public async Task<IReadOnlyList<User>> GetUsersByBranchIdAsync(Guid branchId, CancellationToken cancellationToken = default) =>
