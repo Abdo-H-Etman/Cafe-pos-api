@@ -18,8 +18,11 @@ public class InventoryConfiguration : IEntityTypeConfiguration<Inventory>
             .HasForeignKey(i => i.BranchId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(i => i.Ingredient)
-            .WithMany()
+            .WithMany(i => i.Inventories)
             .HasForeignKey(i => i.IngredientId)
             .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasIndex(i => new { i.BranchId, i.IngredientId })
+            .IsUnique();
     }
 }
