@@ -39,7 +39,7 @@ public static class ServiceExtensions
                 dbName = "cafe_pos.db";
             }
 
-            services.AddDbContextPool<AppDbContext>(options =>
+            services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite($"Data Source={dbName}"));
             return;
         }
