@@ -62,7 +62,7 @@ public class BranchService : IBranchService
     {
         try
         {
-            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken);
+            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken: cancellationToken);
             if (branch == null)
             {
                 _logger.LogWarn("Branch not found with ID: {branchId}", branchId);
@@ -124,7 +124,7 @@ public class BranchService : IBranchService
     {
         try
         {
-            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken);
+            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken:cancellationToken);
             if (branch == null)
             {
                 _logger.LogWarn("Branch not found with ID: {branchId}", branchId);
@@ -156,7 +156,7 @@ public class BranchService : IBranchService
     {
         try
         {
-            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken);
+            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken: cancellationToken);
             if (branch == null)
             {
                 _logger.LogWarn("Branch not found with ID: {branchId}", branchId);
