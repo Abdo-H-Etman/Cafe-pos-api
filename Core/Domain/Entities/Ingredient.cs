@@ -9,4 +9,5 @@ public class Ingredient : IdModel
     public UnitType Unit { get; set; }
     public decimal MinStock { get; set; }
     public ICollection<StockMovement> StockMovements { get; set; } = [];
+    public ICollection<Inventory> Inventories { get; set; } = [];
 }

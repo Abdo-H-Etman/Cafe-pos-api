@@ -35,7 +35,7 @@ public static class ServiceExtensions
             $"Database={Env.GetString("DB_NAME")};"+
             $"Username={Env.GetString("DB_USER")};"+
             $"Password={Env.GetString("DB_PASSWORD")}";
-        services.AddDbContextPool<AppDbContext>(options =>
+        services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
     }
 

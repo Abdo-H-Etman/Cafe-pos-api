@@ -1,3 +1,4 @@
+using Application.Common;
 using Core.Domain.Entities;
 using Core.Domain.Entities.Generics;
 using Microsoft.AspNetCore.Identity;
@@ -8,10 +9,12 @@ namespace Infrastructure.Data;
 
 public class AppDbContext : IdentityDbContext<User, Role, Guid, IdentityUserClaim<Guid>, UserRole, IdentityUserLogin<Guid>, IdentityRoleClaim<Guid>, IdentityUserToken<Guid>>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    private readonly ICurrentUserService _currentUserService;
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService currentUserService) : base(options)
     {
+        _currentUserService = currentUserService;
     }
-    
+    public Guid currentBranchId => _currentUserService.BranchId;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Ignore<IdModel>();
@@ -43,5 +46,8 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid, IdentityUserClai
                 .HasForeignKey(ur => ur.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    
+        builder.Entity<Inventory>().HasQueryFilter(i => _currentUserService.IsAdmin() || i.BranchId == currentBranchId);
+        builder.Entity<StockMovement>().HasQueryFilter(i => _currentUserService.IsAdmin() || i.BranchId == currentBranchId);
     }
 }

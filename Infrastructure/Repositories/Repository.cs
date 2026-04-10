@@ -17,10 +17,13 @@ public class Repository<T> : IRepository<T> where T : IdModel
         _dbSet = context.Set<T>();
     }
 
-    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await _dbSet
-            .Where(e => e.Id == id)
-            .FirstOrDefaultAsync(cancellationToken);
+    public virtual async Task<T?> GetByIdAsync(Guid id, Func<IQueryable<T>, IQueryable<T>>? include = null, CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet.AsNoTrackingWithIdentityResolution().Where(e => e.Id == id);
+        if (include != null)
+            query = include(query);
+        return await query.FirstOrDefaultAsync(cancellationToken);
+    }
 
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await _dbSet
@@ -55,9 +58,13 @@ public class Repository<T> : IRepository<T> where T : IdModel
         int pageNumber,
         int pageSize,
         Expression<Func<T, bool>>? predicate = null,
+        Func<IQueryable<T>, IQueryable<T>>? include = null,
         CancellationToken cancellationToken = default)
     {
         var query = _dbSet.AsNoTrackingWithIdentityResolution();
+
+        if (include != null)
+            query = include(query);
 
         if (predicate != null)
             query = query.Where(predicate);

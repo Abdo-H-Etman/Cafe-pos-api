@@ -17,5 +17,6 @@ public static class ServiceExtensions
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IBranchService, BranchService>();
+        services.AddScoped<IIngredientService, IngredientService>();
     }
 }
