@@ -38,7 +38,6 @@ public class Repository<T> : IRepository<T> where T : IdModel
 
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
         await _dbSet
-            .AsNoTrackingWithIdentityResolution()
             .FirstOrDefaultAsync(predicate, cancellationToken);                      
 
     public virtual async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
