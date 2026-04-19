@@ -7,6 +7,8 @@ using DotNetEnv;
 using Infrastructure.Data;
 using Infrastructure.SeedData;
 using Infrastructure.Utilities;
+using API.Services;
+using Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +27,8 @@ public static class ServiceExtensions
         services.AddApplicationServices();
         services.AddScoped<InitialDataSeeder>();
         services.AddControllers();
+        services.AddSignalR();
+        services.AddScoped<IStockNotificationService, StockNotificationService>();
     }
 
     public static void ConfigureDatabase(this IServiceCollection services, IConfiguration configuration)
