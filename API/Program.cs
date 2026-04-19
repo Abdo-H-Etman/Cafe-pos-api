@@ -1,4 +1,5 @@
 using API.Extensions;
+using API.Hubs;
 using DotNetEnv;
 using Infrastructure.Data;
 using Infrastructure.SeedData;
@@ -19,5 +20,7 @@ using (var scope = app.Services.CreateScope())
     await seeder.SeedAsync();
 }
 
+app.UseStaticFiles();
 app.MapControllers();
+app.MapHub<StockHub>("/stockHub");
 app.Run();
