@@ -15,12 +15,18 @@ public class StockMovementService : IStockMovementService
     private readonly IRepositoryManager _repository;
     private readonly ILoggerManager _logger;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IStockNotificationService _notificationService;
 
-    public StockMovementService(IRepositoryManager repository, ILoggerManager logger, ICurrentUserService currentUserService)
+    public StockMovementService(
+        IRepositoryManager repository, 
+        ILoggerManager logger, 
+        ICurrentUserService currentUserService,
+        IStockNotificationService notificationService)
     {
         _repository = repository;
         _logger = logger;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<StockMovementDto>> CreateAsync(CreateStockMovementDto createStockMovementDto, Guid? branchId = null, CancellationToken cancellationToken = default)
@@ -34,6 +40,7 @@ public class StockMovementService : IStockMovementService
         if (delta != 0)
         {
             await _repository.Inventory.UpdateStockAsync(createdStockMovement.BranchId, createdStockMovement.IngredientId, delta, cancellationToken);
+            await NotifyStockUpdateAsync(createdStockMovement.BranchId, createdStockMovement.IngredientId, cancellationToken);
         }
 
         var createdStockMovementWithIngredient = await _repository.StockMovement.GetByIdAsync(createdStockMovement.Id, 
@@ -154,6 +161,7 @@ public class StockMovementService : IStockMovementService
         if (newDelta != 0)
         {
             await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, newDelta, cancellationToken);
+            await NotifyStockUpdateAsync(stockMovement.BranchId, stockMovement.IngredientId, cancellationToken);
         }
 
         var stockMovementWithIngredient = await _repository.StockMovement.GetByIdAsync(id, include: q => q.Include(sm => sm.Ingredient), cancellationToken);
@@ -183,6 +191,7 @@ public class StockMovementService : IStockMovementService
         if (delta != 0)
         {
             await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, -delta, cancellationToken);
+            await NotifyStockUpdateAsync(stockMovement.BranchId, stockMovement.IngredientId, cancellationToken);
         }
 
         _repository.StockMovement.Remove(stockMovement);
@@ -190,6 +199,34 @@ public class StockMovementService : IStockMovementService
 
         _logger.LogInfo("Stock movement with ID: {stockMovementId} deleted successfully.", id);
         return Result.Success("Stock movement deleted successfully.");
+    }
+
+    private async Task NotifyStockUpdateAsync(Guid branchId, Guid ingredientId, CancellationToken cancellationToken)
+    {
+        var inventory = await _repository.Inventory.FirstOrDefaultAsync(i => 
+            i.BranchId == branchId && i.IngredientId == ingredientId, cancellationToken);
+        
+        if (inventory != null)
+        {
+            // Always notify general stock update
+            await _notificationService.NotifyStockUpdatedAsync(branchId, ingredientId, inventory.CurrentStock, cancellationToken);
+
+            // Check for low stock alert
+            // We need to include the ingredient to get MinStock
+            var inventoryWithIngredient = await _repository.Inventory.GetByIdAsync(inventory.Id, 
+                q => q.Include(i => i.Ingredient), cancellationToken);
+
+            if (inventoryWithIngredient != null && inventoryWithIngredient.CurrentStock <= inventoryWithIngredient.Ingredient.MinStock)
+            {
+                await _notificationService.NotifyLowStockAsync(
+                    branchId, 
+                    ingredientId, 
+                    inventoryWithIngredient.Ingredient.Name, 
+                    inventoryWithIngredient.CurrentStock, 
+                    inventoryWithIngredient.Ingredient.MinStock, 
+                    cancellationToken);
+            }
+        }
     }
 
     private decimal CalculateDelta(MovementType type, decimal quantity)
