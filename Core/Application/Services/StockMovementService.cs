@@ -15,42 +15,37 @@ public class StockMovementService : IStockMovementService
     private readonly IRepositoryManager _repository;
     private readonly ILoggerManager _logger;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IStockNotificationService _notificationService;
 
-    public StockMovementService(IRepositoryManager repository, ILoggerManager logger, ICurrentUserService currentUserService)
+    public StockMovementService(
+        IRepositoryManager repository, 
+        ILoggerManager logger, 
+        ICurrentUserService currentUserService,
+        IStockNotificationService notificationService)
     {
         _repository = repository;
         _logger = logger;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<StockMovementDto>> CreateAsync(CreateStockMovementDto createStockMovementDto, Guid? branchId = null, CancellationToken cancellationToken = default)
     {
         var stockMovement = MapToStockMovement(createStockMovementDto, branchId);
+        
         var createdStockMovement = await _repository.StockMovement.AddAsync(stockMovement, cancellationToken);
         await _repository.SaveAsync(cancellationToken);
+
+        decimal delta = CalculateDelta(createdStockMovement.Type, createdStockMovement.Quantity);
+        if (delta != 0)
+        {
+            await _repository.Inventory.UpdateStockAsync(createdStockMovement.BranchId, createdStockMovement.IngredientId, delta, cancellationToken);
+            await NotifyStockUpdateAsync(createdStockMovement.BranchId, createdStockMovement.IngredientId, cancellationToken);
+        }
+
         var createdStockMovementWithIngredient = await _repository.StockMovement.GetByIdAsync(createdStockMovement.Id, 
             q => q.Include(sm => sm.Ingredient), cancellationToken);
         var stockMovementDto = MapToStockMovementDto(createdStockMovementWithIngredient!);
-        var inventoryToChange = await _repository.Inventory.FirstOrDefaultAsync(i => 
-                                    i.BranchId == createdStockMovement.BranchId &&
-                                    i.IngredientId == createdStockMovement.IngredientId, cancellationToken);
-        if (inventoryToChange != null)
-        {
-            switch (createdStockMovement.Type)
-            {
-                case MovementType.Adjustment:
-                case MovementType.Purchase:
-                case MovementType.Refund:
-                    inventoryToChange.CurrentStock += createdStockMovement.Quantity;
-                    break;
-                case MovementType.Sale:
-                case MovementType.Waste:
-                    inventoryToChange.CurrentStock -= createdStockMovement.Quantity;
-                    break;
-            }
-        }
-
-        await _repository.SaveAsync(cancellationToken);
 
         _logger.LogInfo("Stock movement created successfully with ID: {stockMovementId}", stockMovementDto.Id);
         return Result<StockMovementDto>.Success(stockMovementDto);
@@ -114,90 +109,60 @@ public class StockMovementService : IStockMovementService
             return Result<StockMovementDto?>.Failure($"Stock movement of type {stockMovement.Type} cannot be updated.");
         }
 
-        var inventoryToChange = await _repository.Inventory.FirstOrDefaultAsync(i =>
-                                    i.BranchId == stockMovement.BranchId &&
-                                    i.IngredientId == stockMovement.IngredientId, cancellationToken);
-
-        if(updateStockMovementDto.Quantity != null && updateStockMovementDto.Quantity != stockMovement.Quantity)
+        // 1. Undo old effect
+        decimal oldDelta = CalculateDelta(stockMovement.Type, stockMovement.Quantity);
+        if (oldDelta != 0)
         {
-            if (inventoryToChange != null)
-            {
-                var quantityDifference = Math.Abs(updateStockMovementDto.Quantity.Value - stockMovement.Quantity);
-                if(updateStockMovementDto.Quantity > stockMovement.Quantity)
-                {
-                    switch (stockMovement.Type)
-                    {
-                        case MovementType.Adjustment:
-                        case MovementType.Purchase:
-                        case MovementType.Refund:
-                            inventoryToChange.CurrentStock += quantityDifference;
-                            break;
-                        case MovementType.Sale:
-                        case MovementType.Waste:
-                            inventoryToChange.CurrentStock -= quantityDifference;
-                            break;
-                    }
-                }
-                else
-                {
-                    switch (stockMovement.Type)
-                    {
-                        case MovementType.Adjustment:
-                        case MovementType.Purchase:
-                        case MovementType.Refund:
-                            inventoryToChange.CurrentStock -= quantityDifference;
-                            break;
-                        case MovementType.Sale:
-                        case MovementType.Waste:
-                            inventoryToChange.CurrentStock += quantityDifference;
-                            break;
-                    }
-                }
-            }
-            stockMovement.Quantity = updateStockMovementDto.Quantity ?? stockMovement.Quantity;
+            await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, -oldDelta, cancellationToken);
         }
-        if(updateStockMovementDto.MovementType != null && updateStockMovementDto.MovementType != stockMovement.Type.ToString())
+
+        // 2. Update stock movement entity
+        if(updateStockMovementDto.Quantity != null)
         {
+            stockMovement.Quantity = updateStockMovementDto.Quantity.Value;
+        }
+
+        if(updateStockMovementDto.MovementType != null)
+        {
+            if(stockMovement.Type == MovementType.Sale || stockMovement.Type == MovementType.Waste)
+            {
+                _logger.LogWarn("Stock movement with ID: {stockMovementId} is of type {movementType} and cannot have its type updated.", id, stockMovement.Type);
+
+                await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, oldDelta, cancellationToken);
+                return Result<StockMovementDto?>.Failure($"Stock movement of type {stockMovement.Type} cannot have its type updated.");
+            }
+
+            if(updateStockMovementDto.MovementType == MovementType.Sale.ToString())
+            {
+                _logger.LogWarn("Stock movement with ID: {stockMovementId} cannot be updated to type Sale.", id);
+
+                await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, oldDelta, cancellationToken);
+                return Result<StockMovementDto?>.Failure($"Stock movement cannot be updated to type Sale.");
+            }
+            
             if(Enum.TryParse(updateStockMovementDto.MovementType, out MovementType newMovementType))
             {
-                if (inventoryToChange != null)
-                {
-                    switch (stockMovement.Type)
-                    {
-                        case MovementType.Adjustment:
-                        case MovementType.Purchase:
-                        case MovementType.Refund:
-                            inventoryToChange.CurrentStock -= stockMovement.Quantity;
-                            break;
-                        case MovementType.Sale:
-                        case MovementType.Waste:
-                            inventoryToChange.CurrentStock += stockMovement.Quantity;
-                            break;
-                    }
-
-                    switch (newMovementType)
-                    {
-                        case MovementType.Adjustment:
-                        case MovementType.Purchase:
-                        case MovementType.Refund:
-                            inventoryToChange.CurrentStock += stockMovement.Quantity;
-                            break;
-                        case MovementType.Sale:
-                        case MovementType.Waste:
-                            inventoryToChange.CurrentStock -= stockMovement.Quantity;
-                            break;
-                    }
-                }
                 stockMovement.Type = newMovementType;
             }
             else
             {
                 _logger.LogWarn("Invalid movement type provided for stock movement with ID: {stockMovementId}.", id);
+
+                await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, oldDelta, cancellationToken);
                 return Result<StockMovementDto?>.Failure("Invalid movement type provided.");
             }
         }
+
         _repository.StockMovement.Update(stockMovement);
         await _repository.SaveAsync(cancellationToken);
+
+        // 3. Apply new effect
+        decimal newDelta = CalculateDelta(stockMovement.Type, stockMovement.Quantity);
+        if (newDelta != 0)
+        {
+            await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, newDelta, cancellationToken);
+            await NotifyStockUpdateAsync(stockMovement.BranchId, stockMovement.IngredientId, cancellationToken);
+        }
 
         var stockMovementWithIngredient = await _repository.StockMovement.GetByIdAsync(id, include: q => q.Include(sm => sm.Ingredient), cancellationToken);
         var stockMovementDto = MapToStockMovementDto(stockMovementWithIngredient!);
@@ -205,6 +170,7 @@ public class StockMovementService : IStockMovementService
         _logger.LogInfo("Stock movement with ID: {stockMovementId} updated successfully.", id);
         return Result<StockMovementDto?>.Success(stockMovementDto);
     }
+
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var stockMovement = await _repository.StockMovement.GetByIdAsync(id, cancellationToken: cancellationToken);
@@ -219,30 +185,58 @@ public class StockMovementService : IStockMovementService
             _logger.LogWarn("Stock movement with ID: {stockMovementId} is of type Sale and cannot be deleted.", id);
             return Result.Failure($"Stock movement of type Sale cannot be deleted.");
         }
-        _repository.StockMovement.Remove(stockMovement);
-        var inventoryToChange = await _repository.Inventory.FirstOrDefaultAsync(i =>
-                                    i.BranchId == stockMovement.BranchId &&
-                                    i.IngredientId == stockMovement.IngredientId, cancellationToken);
-        if (inventoryToChange != null)
+
+        // Undo effect before deleting
+        decimal delta = CalculateDelta(stockMovement.Type, stockMovement.Quantity);
+        if (delta != 0)
         {
-            switch (stockMovement.Type)
-            {
-                case MovementType.Adjustment:
-                case MovementType.Purchase:
-                case MovementType.Refund:
-                    inventoryToChange.CurrentStock -= stockMovement.Quantity;
-                    break;
-                case MovementType.Sale:
-                case MovementType.Waste:
-                    inventoryToChange.CurrentStock += stockMovement.Quantity;
-                    break;
-            }
+            await _repository.Inventory.UpdateStockAsync(stockMovement.BranchId, stockMovement.IngredientId, -delta, cancellationToken);
+            await NotifyStockUpdateAsync(stockMovement.BranchId, stockMovement.IngredientId, cancellationToken);
         }
 
+        _repository.StockMovement.Remove(stockMovement);
         await _repository.SaveAsync(cancellationToken);
 
         _logger.LogInfo("Stock movement with ID: {stockMovementId} deleted successfully.", id);
         return Result.Success("Stock movement deleted successfully.");
+    }
+
+    private async Task NotifyStockUpdateAsync(Guid branchId, Guid ingredientId, CancellationToken cancellationToken)
+    {
+        var inventory = await _repository.Inventory.FirstOrDefaultAsync(i => 
+            i.BranchId == branchId && i.IngredientId == ingredientId, cancellationToken);
+        
+        if (inventory != null)
+        {
+            // Always notify general stock update
+            await _notificationService.NotifyStockUpdatedAsync(branchId, ingredientId, inventory.CurrentStock, cancellationToken);
+
+            // Check for low stock alert
+            // We need to include the ingredient to get MinStock
+            var inventoryWithIngredient = await _repository.Inventory.GetByIdAsync(inventory.Id, 
+                q => q.Include(i => i.Ingredient), cancellationToken);
+
+            if (inventoryWithIngredient != null && inventoryWithIngredient.CurrentStock <= inventoryWithIngredient.Ingredient.MinStock)
+            {
+                await _notificationService.NotifyLowStockAsync(
+                    branchId, 
+                    ingredientId, 
+                    inventoryWithIngredient.Ingredient.Name, 
+                    inventoryWithIngredient.CurrentStock, 
+                    inventoryWithIngredient.Ingredient.MinStock, 
+                    cancellationToken);
+            }
+        }
+    }
+
+    private decimal CalculateDelta(MovementType type, decimal quantity)
+    {
+        return type switch
+        {
+            MovementType.Adjustment or MovementType.Purchase or MovementType.Refund => quantity,
+            MovementType.Sale or MovementType.Waste => -quantity,
+            _ => 0
+        };
     }
 
     private StockMovementDto MapToStockMovementDto(StockMovement stockMovement)
@@ -262,7 +256,7 @@ public class StockMovementService : IStockMovementService
         return new StockMovement
         {
             Id = Guid.NewGuid(),
-            BranchId = !_currentUserService.IsAdmin() ? _currentUserService.BranchId : branchId!.Value,
+            BranchId = !_currentUserService.IsAdmin() ? _currentUserService.BranchId : (branchId ?? Guid.Empty),
             IngredientId = createStockMovementDto.IngredientId,
             Quantity = createStockMovementDto.Quantity,
             Type = Enum.TryParse(createStockMovementDto.MovementType, out MovementType movementType) ? movementType : MovementType.Adjustment
