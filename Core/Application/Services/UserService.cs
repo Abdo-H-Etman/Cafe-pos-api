@@ -103,7 +103,7 @@ public class UserService : IUserService
             var userDetailsList = users.Select(MapToUserDetailsDto);
 
             var metaData = new MetaData(pageNumber, pageSize, totalCount);
-            
+
             _logger.LogInfo($"Fetched page {pageNumber} of users with page size {pageSize} and search term '{searchTerm}'.");
             return Result<IEnumerable<UserDetailsDto>, MetaData>.Success(userDetailsList, metaData);
         }
@@ -126,6 +126,7 @@ public class UserService : IUserService
                 Email = user.Email,
                 UserName = user.UserName!,
                 Branch = user.Branch.Name,
+                BranchId = branchId,
                 Roles = user.Roles.Select(r => r.Role.Name)!
             });
 
@@ -184,7 +185,7 @@ public class UserService : IUserService
 
             await _repository.User.Update(user, cancellationToken);
             await _repository.SaveAsync(cancellationToken);
-            
+
             var userDto = MapToUserDetailsDto(user);
 
             _logger.LogInfo("User with ID {UserId} updated successfully.", userId);
@@ -208,6 +209,7 @@ public class UserService : IUserService
             }
 
             await _repository.User.Delete(user, cancellationToken);
+            await _repository.SaveAsync(cancellationToken);
             return Result.Success("User deleted successfully.");
         }
         catch (Exception ex)
@@ -230,5 +232,5 @@ public class UserService : IUserService
             Roles = user.Roles.Select(r => r.Role.Name)!
         };
     }
-    
+
 }
