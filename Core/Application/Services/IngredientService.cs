@@ -43,12 +43,14 @@ public class IngredientService : IIngredientService
         };
 
         var createdIngredient = await _repositoryManager.Ingredient.AddAsync(ingredient, cancellationToken);
-        foreach (var inventory in _repositoryManager.Branch.GetAllAsync(cancellationToken).Result)
+
+        var branches = await _repositoryManager.Branch.GetAllAsync(cancellationToken);
+        foreach (var branch in branches)
         {
             var newInventory = new Inventory
             {
                 Id = Guid.NewGuid(),
-                BranchId = inventory.Id,
+                BranchId = branch.Id,
                 IngredientId = createdIngredient.Id,
                 CurrentStock = 0
             };
@@ -65,13 +67,14 @@ public class IngredientService : IIngredientService
     public async Task<Result<IngredientDto>> GetIngredientByIdAsync(Guid id, Guid? adminSelectedBranchId, CancellationToken cancellationToken)
     {
         var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
-            include: q => 
-            {   if(_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+            include: q =>
+            {
+                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
                 {
                     return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
                             .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
                 }
-                
+
                 return q.Include(i => i.StockMovements)
                         .Include(i => i.Inventories);
             }, cancellationToken);
@@ -90,13 +93,14 @@ public class IngredientService : IIngredientService
         UpdateIngredientDto updateIngredientDto, CancellationToken cancellationToken)
     {
         var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
-            include: q => 
-            {   if(_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+            include: q =>
+            {
+                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
                 {
                     return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
                             .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
                 }
-                
+
                 return q.Include(i => i.StockMovements)
                         .Include(i => i.Inventories);
             }, cancellationToken);
@@ -133,13 +137,14 @@ public class IngredientService : IIngredientService
             pageNumber,
             pageSize,
             i => string.IsNullOrEmpty(searchTerm) || i.Name.ToLower().Contains(searchTerm.ToLower()),
-            include: q => 
-            {   if(_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+            include: q =>
+            {
+                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
                 {
                     return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
                             .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
                 }
-                
+
                 return q.Include(i => i.StockMovements)
                         .Include(i => i.Inventories);
             },
