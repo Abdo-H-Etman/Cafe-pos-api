@@ -38,7 +38,8 @@ public class Repository<T> : IRepository<T> where T : IdModel
 
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
         await _dbSet
-            .FirstOrDefaultAsync(predicate, cancellationToken);                      
+            .AsNoTrackingWithIdentityResolution()
+            .FirstOrDefaultAsync(predicate, cancellationToken);
 
     public virtual async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
         await _dbSet
@@ -98,5 +99,5 @@ public class Repository<T> : IRepository<T> where T : IdModel
 
     public virtual void RemoveRange(IEnumerable<T> entities) =>
         _dbSet.RemoveRange(entities);
-                 
+
 }

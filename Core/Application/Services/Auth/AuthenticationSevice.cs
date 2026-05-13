@@ -145,7 +145,7 @@ public class AuthenticationService : IAuthenticationService
                 return Result<AuthResponseDto>.Failure("Invalid credentials.");
             }
 
-            if(_signInManager.IsSignedIn(new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()) }))))
+            if (_signInManager.IsSignedIn(new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()) }))))
             {
                 _logger.LogWarn("Login attempt failed: User with ID {userId} is already logged in", user.Id);
                 return Result<AuthResponseDto>.Failure("User is already logged in.");
@@ -216,14 +216,7 @@ public class AuthenticationService : IAuthenticationService
                 return Result<AuthResponseDto>.Failure("User not found or inactive.");
             }
 
-            refreshToken.IsRevoked = true;
-            refreshToken.RevokedAt = DateTime.UtcNow;
-
             var authResponse = await GenerateAuthResponseDtoAsync(user, ipAddress, userAgent, cancellationToken);
-            refreshToken.ReplacedByToken = authResponse.RefreshToken;
-
-            _repositoryManager.RefreshToken.Update(refreshToken);
-            await _repositoryManager.SaveAsync(cancellationToken);
 
             _logger.LogInfo("Token refreshed successfully for user: {userId}.", userId);
             return Result<AuthResponseDto>.Success(authResponse, "Token refreshed successfully.");
@@ -231,7 +224,7 @@ public class AuthenticationService : IAuthenticationService
         catch (Exception ex)
         {
             _logger.LogError("Error during token refresh: {message}", ex.Message);
-            return Result<AuthResponseDto>.Failure("Token refresh failed.");
+            return Result<AuthResponseDto>.Failure($"Token refresh failed: {ex.Message}");
         }
     }
 
@@ -249,7 +242,7 @@ public class AuthenticationService : IAuthenticationService
                 return Result.Failure("User not found.");
             }
 
-            if(changePasswordDto.NewPassword != changePasswordDto.ConfirmNewPassword)
+            if (changePasswordDto.NewPassword != changePasswordDto.ConfirmNewPassword)
             {
                 _logger.LogWarn("Change password attempt failed: New password and confirm new password do not match for user ID {userId}.", userId);
                 return Result.Failure("New password and confirm new password do not match.");
@@ -317,7 +310,7 @@ public class AuthenticationService : IAuthenticationService
             {
                 return Result.Failure("User is not currently logged in.");
             }
-            
+
             foreach (var token in activeTokens)
             {
                 token.IsRevoked = true;
