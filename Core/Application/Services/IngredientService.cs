@@ -24,152 +24,194 @@ public class IngredientService : IIngredientService
         _currentUserService = currentUserService;
     }
 
-    public async Task<Result<IngredientDto>> CreateIngredientAsync(CreateIngredientDto createIngredientDto, CancellationToken cancellationToken)
+    public async Task<Result<IngredientDto>> CreateIngredientAsync(CreateIngredientDto createIngredientDto, CancellationToken cancellationToken = default)
     {
-        var existingIngredient = await _repositoryManager.Ingredient
-            .FirstOrDefaultAsync(i => i.Name == createIngredientDto.Name, cancellationToken);
-        if (existingIngredient != null)
+        try
         {
-            _logger.LogWarn("Attempt to create duplicate ingredient: {ingredientName}", createIngredientDto.Name);
-            return Result<IngredientDto>.Failure("An ingredient with the same name already exists.");
-        }
+            var existingIngredient = await _repositoryManager.Ingredient
+                .FirstOrDefaultAsync(i => i.Name == createIngredientDto.Name, cancellationToken);
+            if (existingIngredient != null)
+            {
+                _logger.LogWarn("Attempt to create duplicate ingredient: {ingredientName}", createIngredientDto.Name);
+                return Result<IngredientDto>.Failure("An ingredient with the same name already exists.");
+            }
 
-        var ingredient = new Ingredient
-        {
-            Id = Guid.NewGuid(),
-            Name = createIngredientDto.Name,
-            MinStock = createIngredientDto.MinStock,
-            Unit = Enum.TryParse(createIngredientDto.Unit, out UnitType unit) ? unit : UnitType.Gram
-        };
 
-        var createdIngredient = await _repositoryManager.Ingredient.AddAsync(ingredient, cancellationToken);
-
-        var branches = await _repositoryManager.Branch.GetAllAsync(cancellationToken);
-        foreach (var branch in branches)
-        {
-            var newInventory = new Inventory
+            var ingredient = new Ingredient
             {
                 Id = Guid.NewGuid(),
-                BranchId = branch.Id,
-                IngredientId = createdIngredient.Id,
-                CurrentStock = 0
+                Name = createIngredientDto.Name,
+                MinStock = createIngredientDto.MinStock,
+                Unit = Enum.TryParse(createIngredientDto.Unit, out UnitType unit) ? unit : UnitType.Gram
             };
-            await _repositoryManager.Inventory.AddAsync(newInventory, cancellationToken);
+
+            var createdIngredient = await _repositoryManager.Ingredient.AddAsync(ingredient, cancellationToken);
+
+            var branches = await _repositoryManager.Branch.GetAllAsync(cancellationToken);
+            foreach (var branch in branches)
+            {
+                var newInventory = new Inventory
+                {
+                    Id = Guid.NewGuid(),
+                    BranchId = branch.Id,
+                    IngredientId = createdIngredient.Id,
+                    CurrentStock = 0
+                };
+                await _repositoryManager.Inventory.AddAsync(newInventory, cancellationToken);
+            }
+            await _repositoryManager.SaveAsync(cancellationToken);
+
+            var ingredientDto = MapToIngredientDto(createdIngredient);
+
+            _logger.LogInfo("Ingredient created successfully with ID: {ingredientId}", ingredientDto.Id);
+            return Result<IngredientDto>.Success(ingredientDto);
         }
-        await _repositoryManager.SaveAsync(cancellationToken);
-
-        var ingredientDto = MapToIngredientDto(createdIngredient);
-
-        _logger.LogInfo("Ingredient created successfully with ID: {ingredientId}", ingredientDto.Id);
-        return Result<IngredientDto>.Success(ingredientDto);
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in {CreateIngredientAsync}: {ex}", nameof(CreateIngredientAsync), ex);
+            return Result<IngredientDto>.Failure($"An error occurred while creating the ingredient.");
+        }
     }
 
     public async Task<Result<IngredientDto>> GetIngredientByIdAsync(Guid id, Guid? adminSelectedBranchId, CancellationToken cancellationToken)
     {
-        var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
-            include: q =>
-            {
-                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
-                {
-                    return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
-                            .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
-                }
-
-                return q.Include(i => i.StockMovements)
-                        .Include(i => i.Inventories);
-            }, cancellationToken);
-        if (ingredient == null)
+        try
         {
-            return Result<IngredientDto>.Failure("Ingredient not found.");
+            var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
+                include: q =>
+                {
+                    if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+                    {
+                        return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
+                                .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
+                    }
+
+                    return q.Include(i => i.StockMovements)
+                            .Include(i => i.Inventories);
+                }, cancellationToken);
+            if (ingredient == null)
+            {
+                return Result<IngredientDto>.Failure("Ingredient not found.");
+            }
+
+            var ingredientDto = MapToIngredientDto(ingredient);
+
+            _logger.LogInfo("Ingredient retrieved successfully with ID: {ingredientId}", ingredientDto.Id);
+            return Result<IngredientDto>.Success(ingredientDto);
         }
-
-        var ingredientDto = MapToIngredientDto(ingredient);
-
-        _logger.LogInfo("Ingredient retrieved successfully with ID: {ingredientId}", ingredientDto.Id);
-        return Result<IngredientDto>.Success(ingredientDto);
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in {GetIngredientByIdAsync}: {ex}", nameof(GetIngredientByIdAsync), ex);
+            return Result<IngredientDto>.Failure($"An error occurred while fetching the ingredient.");
+        }
     }
 
     public async Task<Result<IngredientDto>> UpdateIngredientAsync(Guid id, Guid? adminSelectedBranchId,
-        UpdateIngredientDto updateIngredientDto, CancellationToken cancellationToken)
+        UpdateIngredientDto updateIngredientDto, CancellationToken cancellationToken = default)
     {
-        var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
-            include: q =>
-            {
-                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+        try
+        {
+            var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id,
+                include: q =>
                 {
-                    return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
-                            .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
-                }
+                    if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+                    {
+                        return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
+                                .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
+                    }
 
-                return q.Include(i => i.StockMovements)
-                        .Include(i => i.Inventories);
-            }, cancellationToken);
-        if (ingredient == null)
-        {
-            return Result<IngredientDto>.Failure("Ingredient not found.");
+                    return q.Include(i => i.StockMovements)
+                            .Include(i => i.Inventories);
+                }, cancellationToken);
+            if (ingredient == null)
+            {
+                return Result<IngredientDto>.Failure("Ingredient not found.");
+            }
+
+            var duplicateIngredient = await _repositoryManager.Ingredient
+                .FirstOrDefaultAsync(i => i.Name == updateIngredientDto.Name && i.Id != id, cancellationToken);
+            if (duplicateIngredient != null)
+            {
+                _logger.LogWarn("Attempt to update ingredient to a duplicate name: {ingredientName}", updateIngredientDto.Name!);
+                return Result<IngredientDto>.Failure("An ingredient with the same name already exists.");
+            }
+
+            ingredient.Name = updateIngredientDto.Name ?? ingredient.Name;
+            ingredient.MinStock = updateIngredientDto.MinStock ?? ingredient.MinStock;
+            ingredient.Unit = Enum.TryParse(updateIngredientDto.Unit, out UnitType unit) ? unit : ingredient.Unit;
+
+            _repositoryManager.Ingredient.Update(ingredient);
+            await _repositoryManager.SaveAsync(cancellationToken);
+
+            var ingredientDto = MapToIngredientDto(ingredient);
+
+            _logger.LogInfo("Ingredient updated successfully with ID: {ingredientId}", ingredientDto.Id);
+            return Result<IngredientDto>.Success(ingredientDto);
         }
-
-        var duplicateIngredient = await _repositoryManager.Ingredient
-            .FirstOrDefaultAsync(i => i.Name == updateIngredientDto.Name && i.Id != id, cancellationToken);
-        if (duplicateIngredient != null)
+        catch (Exception ex)
         {
-            _logger.LogWarn("Attempt to update ingredient to a duplicate name: {ingredientName}", updateIngredientDto.Name!);
-            return Result<IngredientDto>.Failure("An ingredient with the same name already exists.");
+            _logger.LogError("Error in {UpdateIngredientAsync}: {ex}", nameof(UpdateIngredientAsync), ex);
+            return Result<IngredientDto>.Failure($"An error occurred while updating the ingredient.");
         }
-
-        ingredient.Name = updateIngredientDto.Name ?? ingredient.Name;
-        ingredient.MinStock = updateIngredientDto.MinStock ?? ingredient.MinStock;
-        ingredient.Unit = Enum.TryParse(updateIngredientDto.Unit, out UnitType unit) ? unit : ingredient.Unit;
-
-        await _repositoryManager.SaveAsync(cancellationToken);
-
-        var ingredientDto = MapToIngredientDto(ingredient);
-
-        _logger.LogInfo("Ingredient updated successfully with ID: {ingredientId}", ingredientDto.Id);
-        return Result<IngredientDto>.Success(ingredientDto);
     }
     public async Task<Result<IEnumerable<IngredientDto>, MetaData>> GetPagedIngredientsAsync(
                 int pageNumber, int pageSize, string? searchTerm,
                 Guid? adminSelectedBranchId,
                 CancellationToken cancellationToken)
     {
-        var (ingredients, totalCount) = await _repositoryManager.Ingredient.GetPagedAsync(
-            pageNumber,
-            pageSize,
-            i => string.IsNullOrEmpty(searchTerm) || i.Name.ToLower().Contains(searchTerm.ToLower()),
-            include: q =>
-            {
-                if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+        try
+        {
+            var (ingredients, totalCount) = await _repositoryManager.Ingredient.GetPagedAsync(
+                pageNumber,
+                pageSize,
+                i => string.IsNullOrEmpty(searchTerm) || i.Name.ToLower().Contains(searchTerm.ToLower()),
+                include: q =>
                 {
-                    return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
-                            .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
-                }
+                    if (_currentUserService.IsAdmin() && adminSelectedBranchId.HasValue)
+                    {
+                        return q.Include(i => i.StockMovements.Where(sm => sm.BranchId == adminSelectedBranchId.Value))
+                                .Include(i => i.Inventories.Where(inv => inv.BranchId == adminSelectedBranchId.Value));
+                    }
 
-                return q.Include(i => i.StockMovements)
-                        .Include(i => i.Inventories);
-            },
-            cancellationToken);
+                    return q.Include(i => i.StockMovements)
+                            .Include(i => i.Inventories);
+                },
+                cancellationToken);
 
-        var ingredientDtos = ingredients.Select(MapToIngredientDto).ToList();
-        var metaData = new MetaData(pageNumber, pageSize, totalCount);
+            var ingredientDtos = ingredients.Select(MapToIngredientDto).ToList();
+            var metaData = new MetaData(pageNumber, pageSize, totalCount);
 
-        _logger.LogInfo("Paged ingredients retrieved successfully. Page: {pageNumber}, Size: {pageSize}", pageNumber, pageSize);
-        return Result<IEnumerable<IngredientDto>, MetaData>.Success(ingredientDtos, metaData);
+            _logger.LogInfo("Paged ingredients retrieved successfully. Page: {pageNumber}, Size: {pageSize}", pageNumber, pageSize);
+            return Result<IEnumerable<IngredientDto>, MetaData>.Success(ingredientDtos, metaData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in {GetPagedIngredientsAsync}: {ex}", nameof(GetPagedIngredientsAsync), ex);
+            return Result<IEnumerable<IngredientDto>, MetaData>.Failure($"An error occurred while fetching paged ingredients.");
+        }
     }
 
     public async Task<Result> DeleteIngredientAsync(Guid id, CancellationToken cancellationToken)
     {
-        var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id, cancellationToken: cancellationToken);
-        if (ingredient == null)
+        try
         {
-            return Result.Failure("Ingredient not found.");
+            var ingredient = await _repositoryManager.Ingredient.GetByIdAsync(id, cancellationToken: cancellationToken);
+            if (ingredient == null)
+            {
+                return Result.Failure("Ingredient not found.");
+            }
+
+            _repositoryManager.Ingredient.Remove(ingredient);
+            await _repositoryManager.SaveAsync(cancellationToken);
+
+            _logger.LogInfo("Ingredient deleted successfully with ID: {ingredientId}", id);
+            return Result.Success("Ingredient deleted successfully.");
         }
-
-        _repositoryManager.Ingredient.Remove(ingredient);
-        await _repositoryManager.SaveAsync(cancellationToken);
-
-        _logger.LogInfo("Ingredient deleted successfully with ID: {ingredientId}", id);
-        return Result.Success("Ingredient deleted successfully.");
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in {DeleteIngredientAsync}: {ex}", nameof(DeleteIngredientAsync), ex);
+            return Result.Failure($"An error occurred while deleting the ingredient.");
+        }
     }
 
     private static IngredientDto MapToIngredientDto(Ingredient ingredient) =>
@@ -179,14 +221,14 @@ public class IngredientService : IIngredientService
             Name = ingredient.Name,
             MinStock = ingredient.MinStock,
             Unit = ingredient.Unit.ToString(),
-            currentStocks = ingredient.Inventories.Select(i => i.CurrentStock),
-            StockMovements = ingredient.StockMovements.Select(sm => new StockMovementDto
+            currentStocks = ingredient.Inventories?.Select(i => i.CurrentStock) ?? Enumerable.Empty<decimal>(),
+            StockMovements = ingredient.StockMovements?.Select(sm => new StockMovementDto
             {
                 Id = sm.Id,
                 IngredientName = ingredient.Name,
                 Quantity = sm.Quantity,
                 MovementType = sm.Type.ToString(),
                 Date = sm.CreatedAt
-            })
+            }) ?? Enumerable.Empty<StockMovementDto>()
         };
 }
