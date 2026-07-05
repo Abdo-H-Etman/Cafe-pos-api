@@ -4,7 +4,7 @@ namespace Core.Domain.Interfaces;
 
 public interface IRepositoryManager : IDisposable
 {
-    IRepository<RefreshToken> RefreshToken { get; }
+    IRefreshTokenRepository RefreshToken { get; }
     IRepository<Ingredient> Ingredient { get; }
     IInventoryRepository Inventory { get; }
     IRepository<StockMovement> StockMovement { get; }

@@ -15,7 +15,7 @@ public class RepositoryManager : IRepositoryManager
         _context = context;
         _serviceProvider = serviceProvider;
     }
-    public IRepository<RefreshToken> RefreshToken => _serviceProvider.GetRequiredService<IRepository<RefreshToken>>();
+    public IRefreshTokenRepository RefreshToken => _serviceProvider.GetRequiredService<IRefreshTokenRepository>();
     public IRepository<Ingredient> Ingredient => _serviceProvider.GetRequiredService<IRepository<Ingredient>>();
     public IInventoryRepository Inventory => _serviceProvider.GetRequiredService<IInventoryRepository>();
     public IRepository<StockMovement> StockMovement => _serviceProvider.GetRequiredService<IRepository<StockMovement>>();

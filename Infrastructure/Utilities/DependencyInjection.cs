@@ -13,7 +13,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IRepositoryManager, RepositoryManager>();
         services.AddSingleton<ILoggerManager, LoggerManager>();
-        services.AddScoped<IRepository<RefreshToken>, Repository<RefreshToken>>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IRepository<Ingredient>, Repository<Ingredient>>();
