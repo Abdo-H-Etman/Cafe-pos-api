@@ -49,7 +49,7 @@ public class AuthenticationController : ControllerBase
         var ipAddress = GetIpAddress();
         var userAgent = GetUserAgent();
 
-        if(!_currentUserService.IsAdmin() && request.BranchId != _currentUserService.BranchId)
+        if (!_currentUserService.IsAdmin() && request.BranchId != _currentUserService.BranchId)
             return Forbid();
 
         var result = await _authenticationService.RegisterUserAsync(request, ipAddress, userAgent);
@@ -78,7 +78,7 @@ public class AuthenticationController : ControllerBase
     {
         var user = await _repositoryManager.User.GetUserByIdAsync(userId);
 
-        if(!_currentUserService.IsAdmin() && user?.BranchId != _currentUserService.BranchId)
+        if (!_currentUserService.IsAdmin() && user?.BranchId != _currentUserService.BranchId)
             return Forbid();
 
         var result = await _authenticationService.ChangePasswordAsync(userId, request);
@@ -90,7 +90,6 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("refresh-token")]
-    [Authorize]
     public async Task<IActionResult> RefreshToken([FromBody] TokenDto request)
     {
         var ipAddress = GetIpAddress();
