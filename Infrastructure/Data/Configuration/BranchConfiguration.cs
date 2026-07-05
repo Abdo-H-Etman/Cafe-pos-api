@@ -15,6 +15,10 @@ public class BranchConfiguration : IEntityTypeConfiguration<Branch>
         builder.Property(b => b.Address)
             .HasMaxLength(500);
 
+        builder.HasMany(b => b.Tables)
+            .WithOne(t => t.Branch)
+            .HasForeignKey(t => t.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(b => b.Name)
             .IsUnique();
     }

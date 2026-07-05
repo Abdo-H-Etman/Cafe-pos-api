@@ -23,8 +23,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasConversion<string>();
         builder.Property(o => o.Status)
             .HasConversion<string>();
-        
-        builder.HasIndex(o => new{o.BranchId, o.CreatedAt});
+
+        builder.HasIndex(o => new { o.BranchId, o.CreatedAt });
         builder.HasIndex(o => o.CashierId);
 
         builder.HasOne(o => o.Branch)
@@ -35,5 +35,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .WithMany()
             .HasForeignKey(o => o.CashierId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(o => o.Table)
+            .WithMany(t => t.Orders)
+            .HasForeignKey(o => o.TableId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

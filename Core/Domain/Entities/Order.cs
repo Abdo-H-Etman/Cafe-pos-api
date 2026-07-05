@@ -7,6 +7,7 @@ public class Order : IdModel
 {
     public Guid CashierId { get; set; }
     public Guid BranchId { get; set; }
+    public Guid? TableId { get; set; }
     public decimal SubTotal { get; set; }
     public decimal Tax { get; set; }
     public DiscountType? DiscountType { get; set; }
@@ -17,5 +18,6 @@ public class Order : IdModel
 
     public User Cashier { get; set; } = null!;
     public Branch Branch { get; set; } = null!;
+    public Table? Table { get; set; }
     public ICollection<OrderItem> OrderItems { get; set; } = null!;
 }
