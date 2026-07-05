@@ -200,12 +200,39 @@ public class AuthenticationService : IAuthenticationService
             }
 
             var refreshToken = await _repositoryManager.RefreshToken.FirstOrDefaultAsync(
-                rt => rt.Token == tokenDto.RefreshToken && rt.UserId == userId && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow,
+                rt => rt.Token == tokenDto.RefreshToken && rt.UserId == userId,
                 cancellationToken);
 
             if (refreshToken == null)
             {
                 _logger.LogWarn("Refresh token not found or expired for user ID: {userId}", userId);
+                return Result<AuthResponseDto>.Failure("Invalid or expired refresh token.");
+            }
+
+            if (refreshToken.IsRevoked)
+            {
+                _logger.LogWarn("Reused/revoked refresh token detected for user {userId} — revoking all sessions.", userId);
+                await RevokeAllUserTokensAsync(userId);
+                return Result<AuthResponseDto>.Failure("Invalid or expired refresh token.");
+            }
+
+            if (refreshToken.ExpiresAt <= DateTime.UtcNow)
+                return Result<AuthResponseDto>.Failure("Invalid or expired refresh token.");
+
+            var rowsAffected = await _repositoryManager.RefreshToken
+                .RevokeIfActiveAsync(tokenDto.RefreshToken, replacedByToken: null, cancellationToken);
+
+            if (rowsAffected == 0)
+            {
+                var maybeStolen = await _repositoryManager.RefreshToken
+                    .AnyAsync(rt => rt.Token == tokenDto.RefreshToken && rt.IsRevoked, cancellationToken);
+
+                if (maybeStolen)
+                {
+                    _logger.LogWarn("Revoked/reused refresh token presented for user {userId} — revoking all sessions.", userId);
+                    await _repositoryManager.RefreshToken.RevokeAllForUserAsync(userId, cancellationToken);
+                }
+
                 return Result<AuthResponseDto>.Failure("Invalid or expired refresh token.");
             }
 
@@ -216,6 +243,15 @@ public class AuthenticationService : IAuthenticationService
                 return Result<AuthResponseDto>.Failure("User not found or inactive.");
             }
 
+            var stampClaim = principal.FindFirst("SecurityStamp")?.Value;
+            if (stampClaim != user.SecurityStamp)
+            {
+                _logger.LogWarn("Security stamp mismatch during token refresh for user ID: {userId}.", userId);
+                return Result<AuthResponseDto>.Failure("Session is no longer valid. Please log in again.");
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+
             var authResponse = await GenerateAuthResponseDtoAsync(user, ipAddress, userAgent, cancellationToken);
 
             _logger.LogInfo("Token refreshed successfully for user: {userId}.", userId);
@@ -224,7 +260,7 @@ public class AuthenticationService : IAuthenticationService
         catch (Exception ex)
         {
             _logger.LogError("Error during token refresh: {message}", ex.Message);
-            return Result<AuthResponseDto>.Failure($"Token refresh failed: {ex.Message}");
+            return Result<AuthResponseDto>.Failure("Token refresh failed.");
         }
     }
 
@@ -467,6 +503,15 @@ public class AuthenticationService : IAuthenticationService
         {
             return null;
         }
+    }
+
+    private async Task RevokeAllUserTokensAsync(Guid userId)
+    {
+        var tokens = await _repositoryManager.RefreshToken
+            .FindAsync(rt => rt.UserId == userId && !rt.IsRevoked);
+
+        foreach (var t in tokens) t.IsRevoked = true;
+        await _repositoryManager.SaveAsync();
     }
 
     private UserDto MapToUserResponse(User user)

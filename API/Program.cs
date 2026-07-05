@@ -21,6 +21,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseStaticFiles();
+
+app.UseAuthentication();
+app.UseMiddleware<SecurityStampValidationMiddleware>();  // after authn, before authz
+app.UseAuthorization();
+
 app.MapControllers();
 app.MapHub<StockHub>("/stockHub");
 app.Run();
