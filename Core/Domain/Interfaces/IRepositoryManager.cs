@@ -8,6 +8,7 @@ public interface IRepositoryManager : IDisposable
     IRepository<Ingredient> Ingredient { get; }
     IInventoryRepository Inventory { get; }
     IRepository<StockMovement> StockMovement { get; }
+    IRepository<Table> Table { get; }
     IUserRepository User { get; }
     IBranchRepository Branch { get; }
 

@@ -19,6 +19,7 @@ public class RepositoryManager : IRepositoryManager
     public IRepository<Ingredient> Ingredient => _serviceProvider.GetRequiredService<IRepository<Ingredient>>();
     public IInventoryRepository Inventory => _serviceProvider.GetRequiredService<IInventoryRepository>();
     public IRepository<StockMovement> StockMovement => _serviceProvider.GetRequiredService<IRepository<StockMovement>>();
+    public IRepository<Table> Table => _serviceProvider.GetRequiredService<IRepository<Table>>();
     public IUserRepository User => _serviceProvider.GetRequiredService<IUserRepository>();
     public IBranchRepository Branch => _serviceProvider.GetRequiredService<IBranchRepository>();
 
