@@ -19,7 +19,7 @@ public class Repository<T> : IRepository<T> where T : IdModel
 
     public virtual async Task<T?> GetByIdAsync(Guid id, Func<IQueryable<T>, IQueryable<T>>? include = null, CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTrackingWithIdentityResolution().Where(e => e.Id == id);
+        var query = _dbSet.Where(e => e.Id == id);
         if (include != null)
             query = include(query);
         return await query.FirstOrDefaultAsync(cancellationToken);
