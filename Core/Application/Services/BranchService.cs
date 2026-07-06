@@ -5,6 +5,7 @@ using Core.Application.DTOs.Branch;
 using Core.Application.DTOs.BranchProduct;
 using Core.Application.DTOs.Order;
 using Core.Application.DTOs.Stock;
+using Core.Application.DTOs.Table;
 using Core.Application.Interfaces;
 using Core.Domain.Entities;
 using Core.Domain.Interfaces;
@@ -102,7 +103,7 @@ public class BranchService : IBranchService
             return Result<BranchDetailsDto>.Failure($"An error occurred while fetching the branch details.");
         }
     }
-    
+
     public async Task<Result<IEnumerable<BranchDto>>> GetAllBranchesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -119,22 +120,22 @@ public class BranchService : IBranchService
             return Result<IEnumerable<BranchDto>>.Failure($"An error occurred while fetching all branches.");
         }
     }
-    
+
     public async Task<Result<BranchDto>> UpdateBranchAsync(Guid branchId, UpdateBranchDto updateBranchDto, CancellationToken cancellationToken = default)
     {
         try
         {
-            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken:cancellationToken);
+            var branch = await _repositoryManager.Branch.GetByIdAsync(branchId, cancellationToken: cancellationToken);
             if (branch == null)
             {
                 _logger.LogWarn("Branch not found with ID: {branchId}", branchId);
                 return Result<BranchDto>.Failure("Branch not found.");
             }
 
-            if(!string.IsNullOrEmpty(updateBranchDto.Name))
+            if (!string.IsNullOrEmpty(updateBranchDto.Name))
                 branch.Name = updateBranchDto.Name;
-            
-            if(!string.IsNullOrEmpty(updateBranchDto.Address))
+
+            if (!string.IsNullOrEmpty(updateBranchDto.Address))
                 branch.Address = updateBranchDto.Address;
 
             _repositoryManager.Branch.Update(branch);
@@ -185,7 +186,7 @@ public class BranchService : IBranchService
             Name = branch.Name,
             Address = branch.Address
         };
-    
+
     private static BranchDetailsDto MapToBranchDetailsDto(Branch branch) =>
         new()
         {
@@ -195,9 +196,10 @@ public class BranchService : IBranchService
             Users = MapToUserDtos(branch.Users),
             BranchProducts = MapToBranchProductDtos(branch.BranchProducts),
             Orders = MapToOrderDtos(branch.Orders),
-            StockMovements = MapToStockMovementDtos(branch.StockMovements)
+            StockMovements = MapToStockMovementDtos(branch.StockMovements),
+            Tables = MapToTableDtos(branch.Tables)
         };
-    
+
     private static IEnumerable<StockMovementDto> MapToStockMovementDtos(IEnumerable<StockMovement> stockMovements) =>
         [.. stockMovements.Select(sm => new StockMovementDto
         {
@@ -207,7 +209,7 @@ public class BranchService : IBranchService
             MovementType = sm.Type.ToString(),
             Date = sm.CreatedAt
         })];
-    
+
     private static IEnumerable<UserDetailsDto> MapToUserDtos(IEnumerable<User> users) =>
         [.. users.Select(u => new UserDetailsDto
         {
@@ -229,7 +231,7 @@ public class BranchService : IBranchService
             ProductName = bp.Product.Name,
             Price = bp.Price
         })];
-    
+
     private static IEnumerable<OrderDto> MapToOrderDtos(IEnumerable<Order> orders) =>
         [.. orders.Select(o => new OrderDto
         {
@@ -238,5 +240,12 @@ public class BranchService : IBranchService
             TotalPrice = o.Total,
             Date = o.CreatedAt,
             Status = o.Status.ToString()
+        })];
+
+    private static IEnumerable<TableDto> MapToTableDtos(IEnumerable<Table> tables) =>
+        [.. tables.Select(t => new TableDto
+        {
+            Id = t.Id,
+            Name = t.Name
         })];
 }

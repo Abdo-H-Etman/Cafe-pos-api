@@ -1,0 +1,7 @@
+namespace Core.Application.DTOs.Table;
+
+public record TableDto
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
