@@ -25,6 +25,22 @@ public class Repository<T> : IRepository<T> where T : IdModel
         return await query.FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<T>> GetByIdsAsync(IEnumerable<Guid> ids, bool trackChanges = false, CancellationToken cancellationToken = default)
+    {
+        var idList = ids?.Distinct().ToList() ?? [];
+        if (idList.Count == 0)
+        {
+            return [];
+        }
+
+        IQueryable<T> query = trackChanges
+            ? _context.Set<T>()
+            : _context.Set<T>().AsNoTracking();
+
+        return await query
+            .Where(e => idList.Contains(EF.Property<Guid>(e, "Id")))
+            .ToListAsync(cancellationToken);
+    }
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await _dbSet
             .AsNoTrackingWithIdentityResolution()
