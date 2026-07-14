@@ -6,5 +6,6 @@ public enum MovementType
     Purchase,
     Waste,
     Adjustment,
+    Restock,
     Refund
 }
