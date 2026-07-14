@@ -1,6 +1,7 @@
 using Core.Domain.Entities;
 using Core.Domain.Interfaces;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Infrastructure.Repositories;
@@ -22,7 +23,13 @@ public class RepositoryManager : IRepositoryManager
     public IRepository<Table> Table => _serviceProvider.GetRequiredService<IRepository<Table>>();
     public IUserRepository User => _serviceProvider.GetRequiredService<IUserRepository>();
     public IBranchRepository Branch => _serviceProvider.GetRequiredService<IBranchRepository>();
+    public IRepository<Order> Order => _serviceProvider.GetRequiredService<IRepository<Order>>();
+    public IRepository<Recipe> Recipe => _serviceProvider.GetRequiredService<IRepository<Recipe>>();
+    public IRepository<OrderItem> OrderItem => _serviceProvider.GetRequiredService<IRepository<OrderItem>>();
+    public IRepository<Product> Product => _serviceProvider.GetRequiredService<IRepository<Product>>();
 
+    public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+        await _context.Database.BeginTransactionAsync(cancellationToken);
     public async Task SaveAsync(CancellationToken cancellationToken = default) =>
         await _context.SaveChangesAsync(cancellationToken);
 
