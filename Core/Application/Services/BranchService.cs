@@ -237,7 +237,7 @@ public class BranchService : IBranchService
         {
             Id = o.Id,
             Cashier = o.Cashier.Name,
-            TotalPrice = o.Total,
+            Total = o.Total,
             Date = o.CreatedAt,
             Status = o.Status.ToString()
         })];
