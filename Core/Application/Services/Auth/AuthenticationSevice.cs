@@ -21,6 +21,7 @@ public class AuthenticationService : IAuthenticationService
 {
     private readonly UserManager<User> _userManager;
     private readonly SignInManager<User> _signInManager;
+    private readonly ICurrentUserService _currentUserService;
     private readonly IRepositoryManager _repositoryManager;
     private readonly JwtSettings _jwtSettings;
     private readonly ILoggerManager _logger;
@@ -28,6 +29,7 @@ public class AuthenticationService : IAuthenticationService
     public AuthenticationService(
         IRepositoryManager repositoryManager,
         IOptions<JwtSettings> jwtSettings,
+        ICurrentUserService currentUserService,
         ILoggerManager logger,
         UserManager<User> userManager,
         SignInManager<User> signInManager)
@@ -37,6 +39,7 @@ public class AuthenticationService : IAuthenticationService
         _logger = logger;
         _userManager = userManager;
         _signInManager = signInManager;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<UserDetailsDto>> RegisterUserAsync(
@@ -72,13 +75,23 @@ public class AuthenticationService : IAuthenticationService
                 return Result<UserDetailsDto>.Failure("Passwords do not match.");
             }
 
+            var effectiveBranchId = _currentUserService.IsAdmin()
+                ? createUserDto.BranchId ?? Guid.Empty
+                : createUserDto.BranchId ?? _currentUserService.BranchId;
+
+            if (effectiveBranchId == Guid.Empty)
+            {
+                _logger.LogWarn("Registration attempt failed: a valid branch id was not provided for user {username}", createUserDto.UserName);
+                return Result<UserDetailsDto>.Failure("A valid branch is required.");
+            }
+
             var newUser = new User
             {
                 UserName = createUserDto.UserName,
                 Email = createUserDto.Email,
                 Name = createUserDto.Name,
                 DateJoined = DateTime.UtcNow,
-                BranchId = createUserDto.BranchId
+                BranchId = effectiveBranchId
             };
 
             var result = await _userManager.CreateAsync(newUser, createUserDto.Password);
@@ -90,16 +103,12 @@ public class AuthenticationService : IAuthenticationService
                 return Result<UserDetailsDto>.Failure($"User creation failed.", errors);
             }
 
-            var createdUser = await _userManager.FindByNameAsync(createUserDto.UserName);
-            if (createdUser == null)
-            {
-                _logger.LogError("User with username {username} was created but could not be retrieved from database.", createUserDto.UserName);
-                return Result<UserDetailsDto>.Failure("User was created but could not be retrieved from database.");
-            }
+            await _repositoryManager.SaveAsync(cancellationToken);
+
 
             if (createUserDto.Roles != null && createUserDto.Roles.Any())
             {
-                var roleResult = await _userManager.AddToRolesAsync(createdUser, createUserDto.Roles);
+                var roleResult = await _userManager.AddToRolesAsync(newUser, createUserDto.Roles);
                 if (!roleResult.Succeeded)
                 {
                     var errors = roleResult.Errors.Select(e => e.Description).ToList();
@@ -110,7 +119,7 @@ public class AuthenticationService : IAuthenticationService
             }
 
             // Fetch user with Branch and Roles properly loaded
-            var userWithDetails = await _repositoryManager.User.GetUserByIdAsync(createdUser.Id, cancellationToken);
+            var userWithDetails = await _repositoryManager.User.GetUserByIdAsync(newUser.Id, cancellationToken);
             if (userWithDetails == null)
             {
                 _logger.LogError("User with username {username} was created but could not be retrieved with details.", createUserDto.UserName);
@@ -119,7 +128,7 @@ public class AuthenticationService : IAuthenticationService
 
             var userDetails = MapToUserDetailsDto(userWithDetails);
 
-            _logger.LogInfo("User with Id {userId} registered successfully.", createdUser.Id);
+            _logger.LogInfo("User with Id {userId} registered successfully.", newUser.Id);
             return Result<UserDetailsDto>.Success(userDetails, "User registered successfully.");
         }
         catch (Exception ex)
