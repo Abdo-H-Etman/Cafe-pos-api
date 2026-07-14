@@ -43,16 +43,27 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("register")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin, Manager")]
     public async Task<IActionResult> Register([FromBody] CreateUserDto request)
     {
         var ipAddress = GetIpAddress();
         var userAgent = GetUserAgent();
 
-        if (!_currentUserService.IsAdmin() && request.BranchId != _currentUserService.BranchId)
-            return Forbid();
+        if (!_currentUserService.IsAdmin())
+        {
+            if (request.BranchId is not null && request.BranchId != _currentUserService.BranchId)
+                return Forbid();
+        }
+        else if (!request.BranchId.HasValue)
+        {
+            return BadRequest("BranchId is required for admin users.");
+        }
 
-        var result = await _authenticationService.RegisterUserAsync(request, ipAddress, userAgent);
+        var effectiveRequest = _currentUserService.IsAdmin()
+            ? request with { BranchId = request.BranchId }
+            : request with { BranchId = request.BranchId ?? _currentUserService.BranchId };
+
+        var result = await _authenticationService.RegisterUserAsync(effectiveRequest, ipAddress, userAgent);
 
         if (!result.IsSuccess)
             return BadRequest(result);

@@ -7,6 +7,6 @@ public record CreateUserDto
     public string UserName { get; init; } = null!;
     public string Password { get; init; } = null!;
     public string ConfirmPassword { get; init; } = null!;
-    public Guid BranchId { get; init; }
+    public Guid? BranchId { get; init; }
     public string[] Roles { get; init; } = [];
 }
