@@ -13,6 +13,7 @@ public class Order : IdModel
     public DiscountType? DiscountType { get; set; }
     public decimal? DiscountValue { get; set; }
     public decimal Total { get; set; }
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 

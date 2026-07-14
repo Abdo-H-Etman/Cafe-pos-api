@@ -23,6 +23,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasConversion<string>();
         builder.Property(o => o.Status)
             .HasConversion<string>();
+        builder.Property(o => o.PaymentMethod)
+            .HasConversion<string>();
 
         builder.HasIndex(o => new { o.BranchId, o.CreatedAt });
         builder.HasIndex(o => o.CashierId);
