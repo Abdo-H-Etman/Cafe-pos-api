@@ -80,6 +80,13 @@ public class OrderService : IOrderService
             };
 
             await _repositoryManager.Order.AddAsync(order, cancellationToken);
+            if (order.TableId != null)
+            {
+                var table = await _repositoryManager.Table.GetByIdAsync((Guid)order.TableId,
+                        cancellationToken: cancellationToken);
+                table!.Status = TableStatus.Occupied;
+            }
+
             await _repositoryManager.SaveAsync(cancellationToken);
 
             foreach (var item in order.OrderItems)
@@ -194,6 +201,15 @@ public class OrderService : IOrderService
 
             order.Status = parsedStatus;
             _repositoryManager.Order.Update(order);
+
+            if (parsedStatus != OrderStatus.Pending && order.TableId != null)
+            {
+                var table = await _repositoryManager.Table.GetByIdAsync((Guid)order.TableId, cancellationToken: cancellationToken);
+                if (table != null)
+                {
+                    table.Status = TableStatus.Available;
+                }
+            }
             await _repositoryManager.SaveAsync(cancellationToken);
 
             return Result<OrderDto>.Success(MapToDto(order), "Order status updated successfully.");
