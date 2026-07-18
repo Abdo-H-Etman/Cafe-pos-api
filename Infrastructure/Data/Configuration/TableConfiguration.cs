@@ -12,6 +12,8 @@ public class TableConfiguration : IEntityTypeConfiguration<Table>
 
         builder.Property(t => t.Name)
             .HasMaxLength(100);
+        builder.Property(t => t.Status)
+            .HasConversion<string>();
 
         builder.HasIndex(t => new { t.BranchId, t.Name })
             .IsUnique();
