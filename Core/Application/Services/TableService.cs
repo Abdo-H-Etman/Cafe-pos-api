@@ -4,6 +4,7 @@ using Core.Application.DTOs.Table;
 using Core.Application.Interfaces;
 using Core.Domain.Entities;
 using Core.Domain.Interfaces;
+using Core.Domain.Models.Enums;
 
 namespace Application.Services;
 
@@ -21,12 +22,7 @@ public class TableService : ITableService
     public async Task<Result<IEnumerable<TableDto>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var tables = await _repositoryManager.Table.GetAllAsync(cancellationToken);
-        var tableDtos = tables.Select(t => new TableDto
-        {
-            Id = t.Id,
-            Name = t.Name,
-            Capacity = t.Capacity
-        });
+        var tableDtos = tables.Select(MapToTableDto);
 
         return Result<IEnumerable<TableDto>>.Success(tableDtos);
     }
@@ -39,12 +35,7 @@ public class TableService : ITableService
             return Result<TableDto>.Failure("Table not found.");
         }
 
-        var tableDto = new TableDto
-        {
-            Id = table.Id,
-            Name = table.Name,
-            Capacity = table.Capacity
-        };
+        var tableDto = MapToTableDto(table);
 
         return Result<TableDto>.Success(tableDto);
     }
@@ -62,12 +53,7 @@ public class TableService : ITableService
         await _repositoryManager.Table.AddAsync(table, cancellationToken);
         await _repositoryManager.SaveAsync(cancellationToken);
 
-        var tableDto = new TableDto
-        {
-            Id = table.Id,
-            Name = table.Name,
-            Capacity = table.Capacity
-        };
+        var tableDto = MapToTableDto(table);
 
         return Result<TableDto>.Success(tableDto);
     }
@@ -85,15 +71,51 @@ public class TableService : ITableService
 
         await _repositoryManager.SaveAsync(cancellationToken);
 
-        var tableDto = new TableDto
-        {
-            Id = table.Id,
-            Name = table.Name,
-            Capacity = table.Capacity
-        };
+        var tableDto = MapToTableDto(table);
         return Result<TableDto>.Success(tableDto);
     }
 
+    public async Task<Result<TableDto>> ReserveTableAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
+        if (table == null)
+        {
+            return Result<TableDto>.Failure("Table not found.");
+        }
+
+        if (table.Status == TableStatus.Reserved)
+        {
+            return Result<TableDto>.Failure("Table is already reserved.");
+        }
+
+        table.Status = TableStatus.Reserved;
+
+        await _repositoryManager.SaveAsync(cancellationToken);
+
+        var tableDto = MapToTableDto(table);
+        return Result<TableDto>.Success(tableDto, "Table reserved successfully.");
+    }
+
+    public async Task<Result<TableDto>> UnreserveTableAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
+        if (table == null)
+        {
+            return Result<TableDto>.Failure("Table not found.");
+        }
+
+        if (table.Status != TableStatus.Reserved)
+        {
+            return Result<TableDto>.Failure("Table is not reserved.");
+        }
+
+        table.Status = TableStatus.Available;
+
+        await _repositoryManager.SaveAsync(cancellationToken);
+
+        var tableDto = MapToTableDto(table);
+        return Result<TableDto>.Success(tableDto, "Table unreserved successfully.");
+    }
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
@@ -106,5 +128,16 @@ public class TableService : ITableService
         await _repositoryManager.SaveAsync(cancellationToken);
 
         return Result.Success("Table deleted successfully.");
+    }
+
+    private TableDto MapToTableDto(Table table)
+    {
+        return new TableDto
+        {
+            Id = table.Id,
+            Name = table.Name,
+            Capacity = table.Capacity,
+            Status = table.Status.ToString()
+        };
     }
 }
