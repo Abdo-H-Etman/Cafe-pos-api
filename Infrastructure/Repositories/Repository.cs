@@ -46,11 +46,15 @@ public class Repository<T> : IRepository<T> where T : IdModel
             .AsNoTrackingWithIdentityResolution()
             .ToListAsync(cancellationToken);
 
-    public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
-        await _dbSet
+    public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, Func<IQueryable<T>, IQueryable<T>>? include = null, CancellationToken cancellationToken = default)
+    {
+        var query = _dbSet
             .AsNoTrackingWithIdentityResolution()
-            .Where(predicate)
-            .ToListAsync(cancellationToken);
+            .Where(predicate);
+        if (include != null)
+            query = include(query);
+        return await query.ToListAsync();
+    }
 
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) =>
         await _dbSet

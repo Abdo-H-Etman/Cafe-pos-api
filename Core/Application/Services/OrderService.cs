@@ -91,7 +91,7 @@ public class OrderService : IOrderService
 
             foreach (var item in order.OrderItems)
             {
-                var recipes = await _repositoryManager.Recipe.FindAsync(r => r.ProductId == item.ProductId, cancellationToken);
+                var recipes = await _repositoryManager.Recipe.FindAsync(r => r.ProductId == item.ProductId, cancellationToken: cancellationToken);
                 foreach (var recipe in recipes ?? Enumerable.Empty<Recipe>())
                 {
                     var quantityToDeduct = recipe.Quantity * item.Quantity;
@@ -391,7 +391,7 @@ public class OrderService : IOrderService
 
                 var allRecipes = await _repositoryManager.Recipe.FindAsync(
                     r => productIds.Contains(r.ProductId),
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 var recipesByProduct = (allRecipes ?? Enumerable.Empty<Recipe>())
                     .GroupBy(r => r.ProductId)
