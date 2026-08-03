@@ -13,4 +13,5 @@ public class Table : IdModel
 
     public Branch Branch { get; set; } = null!;
     public ICollection<Order> Orders { get; set; } = [];
+    public ICollection<Reservation> Reservations { get; set; } = [];
 }

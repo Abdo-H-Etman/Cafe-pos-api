@@ -11,4 +11,5 @@ public class Branch : IdModel
     public ICollection<StockMovement> StockMovements { get; set; } = [];
     public ICollection<Order> Orders { get; set; } = [];
     public ICollection<Table> Tables { get; set; } = [];
+    public ICollection<Reservation> Reservations { get; set; } = [];
 }
