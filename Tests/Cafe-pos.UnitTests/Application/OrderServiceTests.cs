@@ -108,7 +108,7 @@ public class OrderServiceTests
             .ReturnsAsync((Order order, CancellationToken _) => order);
 
         recipeRepository
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Recipe, bool>>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Recipe, bool>>>(), It.IsAny<Func<IQueryable<Recipe>, IQueryable<Recipe>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new Recipe { ProductId = productId, IngredientId = ingredientId, Quantity = 2m }]);
 
         inventoryRepository

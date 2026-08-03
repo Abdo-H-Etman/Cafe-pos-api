@@ -349,7 +349,7 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             var activeTokens = await _repositoryManager.RefreshToken
-                .FindAsync(rt => rt.UserId == userId && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow, cancellationToken);
+                .FindAsync(rt => rt.UserId == userId && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow, null, cancellationToken);
 
             if (!activeTokens.Any())
             {
@@ -450,7 +450,7 @@ public class AuthenticationService : IAuthenticationService
             };
 
             var previousTokens = await _repositoryManager.RefreshToken
-                .FindAsync(rt => rt.UserId == userId && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow, cancellationToken);
+                .FindAsync(rt => rt.UserId == userId && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow, null, cancellationToken);
             foreach (var token in previousTokens)
             {
                 token.IsRevoked = true;
