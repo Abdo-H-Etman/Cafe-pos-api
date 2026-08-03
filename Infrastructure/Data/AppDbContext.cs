@@ -50,6 +50,7 @@ public class AppDbContext : IdentityDbContext<User, Role, Guid, IdentityUserClai
         builder.Entity<Inventory>().HasQueryFilter(i => _currentUserService.IsAdmin() || i.BranchId == currentBranchId);
         builder.Entity<StockMovement>().HasQueryFilter(i => _currentUserService.IsAdmin() || i.BranchId == currentBranchId);
         builder.Entity<Table>().HasQueryFilter(t => _currentUserService.IsAdmin() || t.BranchId == currentBranchId);
+        builder.Entity<Reservation>().HasQueryFilter(r => _currentUserService.IsAdmin() || r.BranchId == currentBranchId);
         builder.Entity<User>().HasQueryFilter(u => !_currentUserService.IsAuthenticated || _currentUserService.IsAdmin() || (u.BranchId == currentBranchId && u.Roles.Any(ur => ur.Role.Name != "Admin")));
     }
 }
