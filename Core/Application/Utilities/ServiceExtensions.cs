@@ -23,5 +23,6 @@ public static class ServiceExtensions
         services.AddScoped<ITableService, TableService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IRecipeService, RecipeService>();
+        services.AddScoped<IReservationService, ReservationService>();
     }
 }
