@@ -27,6 +27,7 @@ public class RepositoryManager : IRepositoryManager
     public IRepository<Recipe> Recipe => _serviceProvider.GetRequiredService<IRepository<Recipe>>();
     public IRepository<OrderItem> OrderItem => _serviceProvider.GetRequiredService<IRepository<OrderItem>>();
     public IRepository<Product> Product => _serviceProvider.GetRequiredService<IRepository<Product>>();
+    public IRepository<Reservation> Reservation => _serviceProvider.GetRequiredService<IRepository<Reservation>>();
 
     public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         await _context.Database.BeginTransactionAsync(cancellationToken);

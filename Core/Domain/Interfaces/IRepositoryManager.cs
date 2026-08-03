@@ -16,6 +16,7 @@ public interface IRepositoryManager : IDisposable
     IRepository<Recipe> Recipe { get; }
     IRepository<OrderItem> OrderItem { get; }
     IRepository<Product> Product { get; }
+    IRepository<Reservation> Reservation { get; }
 
     Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(CancellationToken cancellationToken = default);
