@@ -28,28 +28,6 @@ public class TableController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("{id:guid}/reserve")]
-    public async Task<IActionResult> ReserveTable(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _tableService.ReserveTableAsync(id, cancellationToken);
-
-        if (!result.IsSuccess)
-            return NotFound(result);
-
-        return Ok(result);
-    }
-
-    [HttpPost("{id:guid}/unreserve")]
-    public async Task<IActionResult> UnreserveTable(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _tableService.UnreserveTableAsync(id, cancellationToken);
-
-        if (!result.IsSuccess)
-            return NotFound(result);
-
-        return Ok(result);
-    }
-
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetTableById(Guid id, CancellationToken cancellationToken)
     {
@@ -82,7 +60,6 @@ public class TableController : ControllerBase
 
         return Ok(result);
     }
-
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteTable(Guid id, CancellationToken cancellationToken)

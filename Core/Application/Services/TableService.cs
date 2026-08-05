@@ -75,47 +75,6 @@ public class TableService : ITableService
         return Result<TableDto>.Success(tableDto);
     }
 
-    public async Task<Result<TableDto>> ReserveTableAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
-        if (table == null)
-        {
-            return Result<TableDto>.Failure("Table not found.");
-        }
-
-        if (table.Status == TableStatus.Reserved)
-        {
-            return Result<TableDto>.Failure("Table is already reserved.");
-        }
-
-        table.Status = TableStatus.Reserved;
-
-        await _repositoryManager.SaveAsync(cancellationToken);
-
-        var tableDto = MapToTableDto(table);
-        return Result<TableDto>.Success(tableDto, "Table reserved successfully.");
-    }
-
-    public async Task<Result<TableDto>> UnreserveTableAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
-        if (table == null)
-        {
-            return Result<TableDto>.Failure("Table not found.");
-        }
-
-        if (table.Status != TableStatus.Reserved)
-        {
-            return Result<TableDto>.Failure("Table is not reserved.");
-        }
-
-        table.Status = TableStatus.Available;
-
-        await _repositoryManager.SaveAsync(cancellationToken);
-
-        var tableDto = MapToTableDto(table);
-        return Result<TableDto>.Success(tableDto, "Table unreserved successfully.");
-    }
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var table = await _repositoryManager.Table.GetByIdAsync(id, cancellationToken: cancellationToken);
